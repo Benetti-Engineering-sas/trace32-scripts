@@ -1,0 +1,75 @@
+; --------------------------------------------------------------------------------
+; @Title: U-boot script for IMXRT1052 on IMXRT1050-EVK
+; @Description:
+;   SRAM: 0x20209000
+;   SDRAM: 0x80000000
+;
+;   Prerequisites:
+;   None
+;
+; @Keywords: ARM, Cortex-M7
+; @Author: Giulio Benetti <giulio.benetti@benettiengineering.com>
+; @Board: IMXRT1050-EVK
+; @Chip: IMXRT1051 IMXRT1052
+; --------------------------------------------------------------------------------
+
+&uboot_path="/home/giuliobenetti/git/upstream/giuliobenetti/build-uboot-imxrt1050"
+
+;b.reset
+
+  ; initialize and start the debugger
+  SYStem.CPU IMXRT1052
+  SYStem.CONFIG.DEBUGPORTTYPE SWD
+  IF COMBIPROBE()||UTRACE()
+  (
+    SYStem.CONFIG.CONNECTOR MIPI20T
+  )
+  SYStem.Option DUALPORT ON
+  SYStem.MemAccess DAP
+  SYStem.JtagClock CTCK 10MHz
+  Trace.DISable
+  SYStem.Up
+  Break.METHOD Program Onchip 
+
+; set all FLEXRAM as OCRAM(01b) by setting FLEXRAM_BANK_CFG to 0x55555555(sram now is 512Kb)
+Data.Set A:0x400AC044 %LE %Long 0x55555555
+; use FLEXRAM_BANK_CFG to config FLEXRAM by setting FLEXRAM_BANK_CFG_SEL(bit 2)
+Data.Set A:0x400AC040 %LE %Long data.Long(A:0x400AC040)|0x4
+
+; set all CCGRs according to BROM
+Data.Set A:0x400FC068 %LE %Long 0xC0C00FFF ;CCGR0
+Data.Set A:0x400FC06C %LE %Long 0xFCFCC000 ;CCGR1
+Data.Set A:0x400FC070 %LE %Long 0x0C3FF033 ;CCGR2
+Data.Set A:0x400FC074 %LE %Long 0xF00FF300 ;CCGR3
+Data.Set A:0x400FC078 %LE %Long 0x0000FFFF ;CCGR4
+Data.Set A:0x400FC07C %LE %Long 0xF0033C33 ;CCGR5
+Data.Set A:0x400FC080 %LE %Long 0x00FC33CC ;CCGR6
+
+;Data.Set A:0x400AC004 %LE %Long 0x80020018 ;GPR1 set ENET_REF_CLK as output
+
+; let BROM to disable RTWDOG like it does when loading
+; from sd-card or some other medium
+go T:0x213A06
+
+data.load.binary &uboot_path/spl/u-boot-spl.bin 0x20209000
+data.load.elf &uboot_path/spl/u-boot-spl /nocode
+
+r.s pc reset
+
+go board_boot_order
+wait !run()
+
+data.load.binary &uboot_path/u-boot-dtb.bin 0x80002000
+data.load.elf &uboot_path/u-boot /nocode /noclear
+
+r.s pc reset
+
+go relocate_done
+wait !run()
+
+data.load.elf &uboot_path/u-boot Register(R4) /nocode ;/noclear
+step
+
+List.auto
+
+ENDDO
