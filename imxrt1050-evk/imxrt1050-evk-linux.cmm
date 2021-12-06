@@ -1,0 +1,133 @@
+; --------------------------------------------------------------------------------
+; @Title: IMXRT1050-EVK Linux debugging NXP i.MXRT1050
+; @Description:
+;   The example is generated for IMXRT1050-EVK board using an ICD.
+;   It will NOT run on any other board, but may be used as a template
+;   for others.
+; @Keywords: linux, Nxp, i.MXRT1050, i.MXRT1050
+; @Author: Giulio Benetti <giulio.benetti@benettiengineering.com>
+; @Board: IMXRT1050-EVK*
+; @Chip: IMXRT*
+; @Copyright: (C) 1981-2021 Benetti Engineering sas, licensed for use with TRACE32(R) only
+; --------------------------------------------------------------------------------
+
+LOCAL &uboot_path
+LOCAL &linux_path
+LOCAL &dtb_path
+LOCAL &dtbo_path
+LOCAL &ka_path
+LOCAL &awareness
+
+&uboot_path="/home/giuliobenetti/git/upstream/giuliobenetti/build-uboot-imxrt1050"
+&linux_path="/home/giuliobenetti/git/upstream/giuliobenetti/build-linux-imxrt1050"
+&dtb_path="&linux_path/arch/arm/boot/dts"
+
+; Debugger Reset
+WinPAGE.RESet
+AREA.RESet
+WinPOS 0. 25. 75. 9. 0. 0. W000
+AREA.view
+
+PRINT "resetting..."
+
+RESet
+; initialize and start the debugger
+SYStem.CPU IMXRT1052
+SYStem.CONFIG.DEBUGPORTTYPE SWD
+IF COMBIPROBE()||UTRACE()
+(
+  SYStem.CONFIG.CONNECTOR MIPI20T
+)
+SYStem.Option DUALPORT ON
+SYStem.MemAccess DAP
+SYStem.JtagClock CTCK 10MHz
+Trace.DISable
+SYStem.Up
+Break.METHOD Program Onchip
+
+; set all FLEXRAM as OCRAM(01b) by setting FLEXRAM_BANK_CFG to 0x55555555(sram now is 512Kb)
+Data.Set A:0x400AC044 %LE %Long 0x55555555
+; use FLEXRAM_BANK_CFG to config FLEXRAM by setting FLEXRAM_BANK_CFG_SEL(bit 2)
+Data.Set A:0x400AC040 %LE %Long data.Long(A:0x400AC040)|0x4
+
+; set all CCGRs according to BROM
+Data.Set A:0x400FC068 %LE %Long 0xC0C00FFF ;CCGR0
+Data.Set A:0x400FC06C %LE %Long 0xFCFCC000 ;CCGR1
+Data.Set A:0x400FC070 %LE %Long 0x0C3FF033 ;CCGR2
+Data.Set A:0x400FC074 %LE %Long 0xF00FF300 ;CCGR3
+Data.Set A:0x400FC078 %LE %Long 0x0000FFFF ;CCGR4
+Data.Set A:0x400FC07C %LE %Long 0xF0033C33 ;CCGR5
+Data.Set A:0x400FC080 %LE %Long 0x00FC33CC ;CCGR6
+
+Data.Set A:0x400AC004 %LE %Long 0x80020018 ;GPR1 set ENET_REF_CLK as output
+
+; let BROM to disable RTWDOG like it does when loading
+; from sd-card or some other medium
+go T:0x213A06
+
+data.load.binary &uboot_path/spl/u-boot-spl.bin 0x20209000
+data.load.elf &uboot_path/spl/u-boot-spl /nocode
+
+r.s pc reset
+
+; Start and wait for spl to be executed and fail on sd-card boot
+; (because there's no sd-card inserted)
+Go
+Wait 1s
+Break
+
+data.load.binary &uboot_path/u-boot-dtb.bin 0x80002000
+data.load.elf &uboot_path/u-boot /nocode /noclear
+r.s pc reset
+Go
+Wait 1s
+Break
+
+PRINT "loading Linux image..."
+; Loading Linux image and DTB via ICD
+Data.LOAD.Binary &linux_path/arch/arm/boot/uImage 0x80000000 /noclear
+; Load the Linux kernel symbols into the debugger
+PRINT "loading Linux kernel symbols..."
+Data.LOAD.Elf &linux_path/vmlinux /gnu /NoCODE
+; Load DTB
+PRINT "loading DTB..."
+Data.LOAD.Binary &dtb_path/imxrt1050-evk.dtb 0x80800000 /NoClear
+
+; Open serial terminal window on ttyUSB0
+DO ~~/demo/etc/terminal/serial/term.cmm /dev/ttyACM0 115200.
+
+; Starting the kernel
+Go
+PRINT "Starting Linux..."
+; Wait for uboot to be ready to receive characters on serial
+wait 1s
+; Set boot arguments
+TERM.Out "setenv bootargs console=ttyLP0 root=/dev/mmcblk0p2 rw earlycon rootwait panic=10" 0xa
+WAIT 0.5s
+
+; Boot Linux from memory: bootm <kernel>
+TERM.Out "bootm 0x80000000 - 0x80800000" 0x0a
+WAIT 0.1s
+break
+
+Go.direct start_kernel /Onchip
+WAIT !run()
+
+; Initialize Linux Awareness
+; Note that the Linux awareness needs the kernel symbols to work
+&ka_path="~~/demo/arm/kernel/uclinux/linux-3.x"
+&awareness="uclinux3.t32"
+
+PRINT "initializing RTOS support..."
+TASK.CONFIG &ka_path/&awareness      ; loads Linux awareness
+MENU.ReProgram &ka_path/uclinux        ; loads Linux menu
+; Group kernel area to be displayed with red bar
+GROUP.Create "kernel" 0x80000000--0x80080000 /RED
+
+Go.direct cpu_startup_entry /Onchip
+WAIT !run()
+
+Mode.Hll
+List
+
+enddo
