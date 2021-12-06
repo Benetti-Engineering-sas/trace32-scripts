@@ -6,7 +6,7 @@
 ; @Author: Giulio Benetti <giulio.benetti@benettiengineering.com>
 ; @Board: RK3288-Vyasa*
 ; @Chip: RK3288*
-; @Copyright: (C) 1989-2015 Lauterbach GmbH, licensed for use with TRACE32(R) only
+; @Copyright: (C) 2021 Benetti Engineering sas, licensed for use with TRACE32(R) only
 ; --------------------------------------------------------------------------------
 ; $Id: uboot.cmm
 
