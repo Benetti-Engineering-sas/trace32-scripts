@@ -1,0 +1,212 @@
+; --------------------------------------------------------------------------------
+; @Title: SDRAM Initialization script for IMXRT1052 on IMXRT1050-EVK
+; @Description:
+;   SDRAM: 0x80000000
+;
+;   Prerequisites:
+;   None
+;
+; @Keywords: ARM, Cortex-M7
+; @Author: Giulio Benetti <giulio.benetti@benettiengineering.com>
+; @Board: IMXRT1050-EVK
+; @Chip: IMXRT1051 IMXRT1052
+; --------------------------------------------------------------------------------
+
+AREA.view
+; initialize and start the debugger
+RESet
+SYStem.RESet
+SYStem.CPU IMXRT1052
+SYStem.CONFIG.DEBUGPORTTYPE SWD
+IF COMBIPROBE()||UTRACE()
+(
+  SYStem.CONFIG.CONNECTOR MIPI20T
+)
+SYStem.Option DUALPORT ON
+SYStem.MemAccess DAP
+SYStem.JtagClock CTCK 10MHz
+Trace.DISable
+SYStem.Option.WaitReset 200ms
+SYStem.Up
+
+GOSUB clockInit
+GOSUB IOMUXconfig
+GOSUB SDRAMconfig
+
+data.dump 0x80000000
+
+ENDDO
+
+SDRAMconfig:
+(
+  // Disable SEMC MDIS bit
+  Data.Set A:0x402F0000 %LE %Long Data.Long(A:0x402F0000)&(~0x02)   ; SEMC_MCR &= ~SEMC_MCR_MDIS_MASK(0x2)
+  Data.Set A:0x402F0000 %LE %Long 0x10000004   ; SEMC_MCR = 0x10000004
+  Data.Set A:0x402F0008 %LE %Long 0x00030524   ; SEMC_BMCR0 = 0x00030524
+  Data.Set A:0x402F000C %LE %Long 0x06030524   ; SEMC_BMCR1 = 0x06030524
+  // First bank is 32Mbytes
+  Data.Set A:0x402F0010 %LE %Long 0x8000001B   ; SEMC_BR[0] = 0x80000000 | 0x1A | 0x1
+  // Set CS0X as SDRAM_CS1
+  Data.Set A:0x402F0004 %LE %Long 0x00000008   ; SEMC_IOCR = 0x08
+  // SEMC_SDRAMCR0: BL=3 CL=3 COL=12 bits PS=16 bits
+  Data.Set A:0x402F0040 %LE %Long 0x00000F31
+  // SEMC_SDRAMCR1=0x00652922
+  Data.Set A:0x402F0044 %LE %Long 0x00652922
+  // SEMC_SDRAMCR2=0x00010920
+  Data.Set A:0x402F0048 %LE %Long 0x00010920
+  // SEMC_SDRAMCR3=0x50210A09
+  Data.Set A:0x402F004C %LE %Long 0x50210A09
+  // SEMC_DBICR0=0x00000021
+  Data.Set A:0x402F0080 %LE %Long 0x00000021
+  // SEMC_DBICR1=0x00888888
+  Data.Set A:0x402F0084 %LE %Long 0x00888888
+  // SEMC_IPCR1=0x00000002
+  Data.Set A:0x402F0094 %LE %Long 0x00000002
+  // SEMC_IPCR2=0x00000000
+  Data.Set A:0x402F0098 %LE %Long 0x00000000
+
+  // Start Init Sequence
+  wait 100ms
+  GOSUB SDRAMIpCmd "0x80000000" "0xF" "0x0000"
+  GOSUB SDRAMIpCmd "0x80000000" "0xC" "0x0000"
+  GOSUB SDRAMIpCmd "0x80000000" "0xC" "0x0000"
+  GOSUB SDRAMIpCmd "0x80000000" "0xA" "0x33"
+  wait 100ms
+
+  RETURN
+)
+
+SDRAMIpCmd:
+(
+  PARAMETERS &mem_addr &ipcmd &wd
+  PRIVATE &rd
+
+  // 0x9 => SD_CC_IWR, 0xA => SD_CC_IMS
+  IF ((&ipcmd==0x9)||(&ipcmd&0x0000FFFF)==0xA)
+  (
+    // Set IPTXDAT
+    Data.Set A:0x402F00A0 %LE %Long (&wd&0x0000FFFF)
+  )
+
+  // Set IPCR0
+  Data.Set A:0x402F0090 %LE %Long &mem_addr
+  // Set IPCMD
+  Data.Set A:0x402F009C %LE %Long (0xA55A0000|(&ipcmd&0x0000FFFF))
+
+  // WaitIpCmdDone
+  WHILE ((Data.Long(A:0x402F003C)&0x03)==0x00)
+    WAIT 10ms
+
+  // Read SEMC_INTR
+  &rd = Data.Long(A:0x402F003C)
+
+  // 0x8 => SD_CC_IRD
+  IF (&ipcmd==0x8)
+  (
+    // Read IPRXDAT
+    &rd = Data.Long(A:0x402F00B0)
+  )
+
+  RETURN
+)
+
+IOMUXconfig:
+(
+  //pin mux
+  Data.Set A:0x401F8014 %LE %Long 0x0   ; IOMUXC_SetPinMux(SW_MUX_CTL_PAD_GPIO_EMC_00, 0U);
+  Data.Set A:0x401F8018 %LE %Long 0x0   ; IOMUXC_SetPinMux(SW_MUX_CTL_PAD_GPIO_EMC_01, 0U);
+  Data.Set A:0x401F801C %LE %Long 0x0   ; IOMUXC_SetPinMux(SW_MUX_CTL_PAD_GPIO_EMC_02, 0U);
+  Data.Set A:0x401F8020 %LE %Long 0x0   ; IOMUXC_SetPinMux(SW_MUX_CTL_PAD_GPIO_EMC_03, 0U);
+  Data.Set A:0x401F8024 %LE %Long 0x0   ; IOMUXC_SetPinMux(SW_MUX_CTL_PAD_GPIO_EMC_04, 0U);
+  Data.Set A:0x401F8028 %LE %Long 0x0   ; IOMUXC_SetPinMux(SW_MUX_CTL_PAD_GPIO_EMC_05, 0U);
+  Data.Set A:0x401F802C %LE %Long 0x0   ; IOMUXC_SetPinMux(SW_MUX_CTL_PAD_GPIO_EMC_06, 0U);
+  Data.Set A:0x401F8030 %LE %Long 0x0   ; IOMUXC_SetPinMux(SW_MUX_CTL_PAD_GPIO_EMC_07, 0U);
+  Data.Set A:0x401F8034 %LE %Long 0x0   ; IOMUXC_SetPinMux(SW_MUX_CTL_PAD_GPIO_EMC_08, 0U);
+  Data.Set A:0x401F8038 %LE %Long 0x0   ; IOMUXC_SetPinMux(SW_MUX_CTL_PAD_GPIO_EMC_09, 0U);
+  Data.Set A:0x401F803C %LE %Long 0x0   ; IOMUXC_SetPinMux(SW_MUX_CTL_PAD_GPIO_EMC_10, 0U);
+  Data.Set A:0x401F8040 %LE %Long 0x0   ; IOMUXC_SetPinMux(SW_MUX_CTL_PAD_GPIO_EMC_11, 0U);
+  Data.Set A:0x401F8044 %LE %Long 0x0   ; IOMUXC_SetPinMux(SW_MUX_CTL_PAD_GPIO_EMC_12, 0U);
+  Data.Set A:0x401F8048 %LE %Long 0x0   ; IOMUXC_SetPinMux(SW_MUX_CTL_PAD_GPIO_EMC_13, 0U);
+  Data.Set A:0x401F804C %LE %Long 0x0   ; IOMUXC_SetPinMux(SW_MUX_CTL_PAD_GPIO_EMC_14, 0U);
+  Data.Set A:0x401F8050 %LE %Long 0x0   ; IOMUXC_SetPinMux(SW_MUX_CTL_PAD_GPIO_EMC_15, 0U);
+  Data.Set A:0x401F8054 %LE %Long 0x0   ; IOMUXC_SetPinMux(SW_MUX_CTL_PAD_GPIO_EMC_16, 0U);
+  Data.Set A:0x401F8058 %LE %Long 0x0   ; IOMUXC_SetPinMux(SW_MUX_CTL_PAD_GPIO_EMC_17, 0U);
+  Data.Set A:0x401F805C %LE %Long 0x0   ; IOMUXC_SetPinMux(SW_MUX_CTL_PAD_GPIO_EMC_18, 0U);
+  Data.Set A:0x401F8060 %LE %Long 0x0   ; IOMUXC_SetPinMux(SW_MUX_CTL_PAD_GPIO_EMC_19, 0U);
+  Data.Set A:0x401F8064 %LE %Long 0x0   ; IOMUXC_SetPinMux(SW_MUX_CTL_PAD_GPIO_EMC_20, 0U);
+  Data.Set A:0x401F8068 %LE %Long 0x0   ; IOMUXC_SetPinMux(SW_MUX_CTL_PAD_GPIO_EMC_21, 0U);
+  Data.Set A:0x401F806C %LE %Long 0x0   ; IOMUXC_SetPinMux(SW_MUX_CTL_PAD_GPIO_EMC_22, 0U);
+  Data.Set A:0x401F8070 %LE %Long 0x0   ; IOMUXC_SetPinMux(SW_MUX_CTL_PAD_GPIO_EMC_23, 0U);
+  Data.Set A:0x401F8074 %LE %Long 0x0   ; IOMUXC_SetPinMux(SW_MUX_CTL_PAD_GPIO_EMC_24, 0U);
+  Data.Set A:0x401F8078 %LE %Long 0x0   ; IOMUXC_SetPinMux(SW_MUX_CTL_PAD_GPIO_EMC_25, 0U);
+  Data.Set A:0x401F807C %LE %Long 0x0   ; IOMUXC_SetPinMux(SW_MUX_CTL_PAD_GPIO_EMC_26, 0U);
+  Data.Set A:0x401F8080 %LE %Long 0x0   ; IOMUXC_SetPinMux(SW_MUX_CTL_PAD_GPIO_EMC_27, 0U);
+  Data.Set A:0x401F8084 %LE %Long 0x0   ; IOMUXC_SetPinMux(SW_MUX_CTL_PAD_GPIO_EMC_28, 0U);
+  Data.Set A:0x401F8088 %LE %Long 0x0   ; IOMUXC_SetPinMux(SW_MUX_CTL_PAD_GPIO_EMC_29, 0U);
+  Data.Set A:0x401F808C %LE %Long 0x0   ; IOMUXC_SetPinMux(SW_MUX_CTL_PAD_GPIO_EMC_30, 0U);
+  Data.Set A:0x401F8090 %LE %Long 0x0   ; IOMUXC_SetPinMux(SW_MUX_CTL_PAD_GPIO_EMC_31, 0U);
+  Data.Set A:0x401F8094 %LE %Long 0x0   ; IOMUXC_SetPinMux(SW_MUX_CTL_PAD_GPIO_EMC_32, 0U);
+  Data.Set A:0x401F8098 %LE %Long 0x0   ; IOMUXC_SetPinMux(SW_MUX_CTL_PAD_GPIO_EMC_33, 0U);
+  Data.Set A:0x401F809C %LE %Long 0x0   ; IOMUXC_SetPinMux(SW_MUX_CTL_PAD_GPIO_EMC_34, 0U);
+  Data.Set A:0x401F80A0 %LE %Long 0x0   ; IOMUXC_SetPinMux(SW_MUX_CTL_PAD_GPIO_EMC_35, 0U);
+  Data.Set A:0x401F80A4 %LE %Long 0x0   ; IOMUXC_SetPinMux(SW_MUX_CTL_PAD_GPIO_EMC_36, 0U);
+  Data.Set A:0x401F80A8 %LE %Long 0x0   ; IOMUXC_SetPinMux(SW_MUX_CTL_PAD_GPIO_EMC_37, 0U);
+  Data.Set A:0x401F80AC %LE %Long 0x0   ; IOMUXC_SetPinMux(SW_MUX_CTL_PAD_GPIO_EMC_38, 0U);
+  Data.Set A:0x401F80B0 %LE %Long 0x10  ; IOMUXC_SetPinMux(SW_MUX_CTL_PAD_GPIO_EMC_39, 0x10U);
+  Data.Set A:0x401F80B4 %LE %Long 0x0   ; IOMUXC_SetPinMux(SW_MUX_CTL_PAD_GPIO_EMC_40, 0U);
+  Data.Set A:0x401F80B8 %LE %Long 0x0   ; IOMUXC_SetPinMux(SW_MUX_CTL_PAD_GPIO_EMC_41, 0U);
+
+  //pin config
+  Data.Set A:0x401F8204 %LE %Long 0xF1   ; IOMUXC_SetPinConfig(SW_PAD_CTL_PAD_GPIO_EMC_00, 0xF1u);
+  Data.Set A:0x401F8208 %LE %Long 0xF1   ; IOMUXC_SetPinConfig(SW_PAD_CTL_PAD_GPIO_EMC_01, 0xF1u);
+  Data.Set A:0x401F820C %LE %Long 0xF1   ; IOMUXC_SetPinConfig(SW_PAD_CTL_PAD_GPIO_EMC_02, 0xF1u);
+  Data.Set A:0x401F8210 %LE %Long 0xF1   ; IOMUXC_SetPinConfig(SW_PAD_CTL_PAD_GPIO_EMC_03, 0xF1u);
+  Data.Set A:0x401F8214 %LE %Long 0xF1   ; IOMUXC_SetPinConfig(SW_PAD_CTL_PAD_GPIO_EMC_04, 0xF1u);
+  Data.Set A:0x401F8218 %LE %Long 0xF1   ; IOMUXC_SetPinConfig(SW_PAD_CTL_PAD_GPIO_EMC_05, 0xF1u);
+  Data.Set A:0x401F821C %LE %Long 0xF1   ; IOMUXC_SetPinConfig(SW_PAD_CTL_PAD_GPIO_EMC_06, 0xF1u);
+  Data.Set A:0x401F8220 %LE %Long 0xF1   ; IOMUXC_SetPinConfig(SW_PAD_CTL_PAD_GPIO_EMC_07, 0xF1u);
+  Data.Set A:0x401F8224 %LE %Long 0xF1   ; IOMUXC_SetPinConfig(SW_PAD_CTL_PAD_GPIO_EMC_08, 0xF1u);
+  Data.Set A:0x401F8228 %LE %Long 0xF1   ; IOMUXC_SetPinConfig(SW_PAD_CTL_PAD_GPIO_EMC_09, 0xF1u);
+  Data.Set A:0x401F822C %LE %Long 0xF1   ; IOMUXC_SetPinConfig(SW_PAD_CTL_PAD_GPIO_EMC_10, 0xF1u);
+  Data.Set A:0x401F8230 %LE %Long 0xF1   ; IOMUXC_SetPinConfig(SW_PAD_CTL_PAD_GPIO_EMC_11, 0xF1u);
+  Data.Set A:0x401F8234 %LE %Long 0xF1   ; IOMUXC_SetPinConfig(SW_PAD_CTL_PAD_GPIO_EMC_12, 0xF1u);
+  Data.Set A:0x401F8238 %LE %Long 0xF1   ; IOMUXC_SetPinConfig(SW_PAD_CTL_PAD_GPIO_EMC_13, 0xF1u);
+  Data.Set A:0x401F823C %LE %Long 0xF1   ; IOMUXC_SetPinConfig(SW_PAD_CTL_PAD_GPIO_EMC_14, 0xF1u);
+  Data.Set A:0x401F8240 %LE %Long 0xF1   ; IOMUXC_SetPinConfig(SW_PAD_CTL_PAD_GPIO_EMC_15, 0xF1u);
+  Data.Set A:0x401F8244 %LE %Long 0xF1   ; IOMUXC_SetPinConfig(SW_PAD_CTL_PAD_GPIO_EMC_16, 0xF1u);
+  Data.Set A:0x401F8248 %LE %Long 0xF1   ; IOMUXC_SetPinConfig(SW_PAD_CTL_PAD_GPIO_EMC_17, 0xF1u);
+  Data.Set A:0x401F824C %LE %Long 0xF1   ; IOMUXC_SetPinConfig(SW_PAD_CTL_PAD_GPIO_EMC_18, 0xF1u);
+  Data.Set A:0x401F8250 %LE %Long 0xF1   ; IOMUXC_SetPinConfig(SW_PAD_CTL_PAD_GPIO_EMC_19, 0xF1u);
+  Data.Set A:0x401F8254 %LE %Long 0xF1   ; IOMUXC_SetPinConfig(SW_PAD_CTL_PAD_GPIO_EMC_20, 0xF1u);
+  Data.Set A:0x401F8258 %LE %Long 0xF1   ; IOMUXC_SetPinConfig(SW_PAD_CTL_PAD_GPIO_EMC_21, 0xF1u);
+  Data.Set A:0x401F825C %LE %Long 0xF1   ; IOMUXC_SetPinConfig(SW_PAD_CTL_PAD_GPIO_EMC_22, 0xF1u);
+  Data.Set A:0x401F8260 %LE %Long 0xF1   ; IOMUXC_SetPinConfig(SW_PAD_CTL_PAD_GPIO_EMC_23, 0xF1u);
+  Data.Set A:0x401F8264 %LE %Long 0xF1   ; IOMUXC_SetPinConfig(SW_PAD_CTL_PAD_GPIO_EMC_24, 0xF1u);
+  Data.Set A:0x401F8268 %LE %Long 0xF1   ; IOMUXC_SetPinConfig(SW_PAD_CTL_PAD_GPIO_EMC_25, 0xF1u);
+  Data.Set A:0x401F826C %LE %Long 0xF1   ; IOMUXC_SetPinConfig(SW_PAD_CTL_PAD_GPIO_EMC_26, 0xF1u);
+  Data.Set A:0x401F8270 %LE %Long 0xF1   ; IOMUXC_SetPinConfig(SW_PAD_CTL_PAD_GPIO_EMC_27, 0xF1u);
+  Data.Set A:0x401F8274 %LE %Long 0xF1   ; IOMUXC_SetPinConfig(SW_PAD_CTL_PAD_GPIO_EMC_28, 0xF1u);
+  Data.Set A:0x401F8278 %LE %Long 0xF1   ; IOMUXC_SetPinConfig(SW_PAD_CTL_PAD_GPIO_EMC_29, 0xF1u);
+  Data.Set A:0x401F827C %LE %Long 0xF1   ; IOMUXC_SetPinConfig(SW_PAD_CTL_PAD_GPIO_EMC_30, 0xF1u);
+  Data.Set A:0x401F8280 %LE %Long 0xF1   ; IOMUXC_SetPinConfig(SW_PAD_CTL_PAD_GPIO_EMC_31, 0xF1u);
+  Data.Set A:0x401F8284 %LE %Long 0xF1   ; IOMUXC_SetPinConfig(SW_PAD_CTL_PAD_GPIO_EMC_32, 0xF1u);
+  Data.Set A:0x401F8288 %LE %Long 0xF1   ; IOMUXC_SetPinConfig(SW_PAD_CTL_PAD_GPIO_EMC_33, 0xF1u);
+  Data.Set A:0x401F828C %LE %Long 0xF1   ; IOMUXC_SetPinConfig(SW_PAD_CTL_PAD_GPIO_EMC_34, 0xF1u);
+  Data.Set A:0x401F8290 %LE %Long 0xF1   ; IOMUXC_SetPinConfig(SW_PAD_CTL_PAD_GPIO_EMC_35, 0xF1u);
+  Data.Set A:0x401F8294 %LE %Long 0xF1   ; IOMUXC_SetPinConfig(SW_PAD_CTL_PAD_GPIO_EMC_36, 0xF1u);
+  Data.Set A:0x401F8298 %LE %Long 0xF1   ; IOMUXC_SetPinConfig(SW_PAD_CTL_PAD_GPIO_EMC_37, 0xF1u);
+  Data.Set A:0x401F829C %LE %Long 0xF1   ; IOMUXC_SetPinConfig(SW_PAD_CTL_PAD_GPIO_EMC_38, 0xF1u);
+  Data.Set A:0x401F82A0 %LE %Long 0x10   ; IOMUXC_SetPinConfig(SW_PAD_CTL_PAD_GPIO_EMC_39, 0x10u); DQS
+  Data.Set A:0x401F82A4 %LE %Long 0xF1   ; IOMUXC_SetPinConfig(SW_PAD_CTL_PAD_GPIO_EMC_40, 0xF1u);
+  Data.Set A:0x401F82A8 %LE %Long 0xF1   ; IOMUXC_SetPinConfig(SW_PAD_CTL_PAD_GPIO_EMC_41, 0xF1u);
+
+  RETURN
+)
+
+clockInit: ;()
+(
+  // Enable all clocks
+  Data.Set A:0x400FC074 %LE %Long Data.Long(A:0x400FC074)|0x30  ; On during all modes(CG2=3 on CCGR3(SEMC clock gate))
+
+  RETURN
+)
