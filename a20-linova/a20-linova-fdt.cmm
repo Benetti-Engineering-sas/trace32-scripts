@@ -83,9 +83,8 @@ Go
 PRINT "Starting Linux..."
 ; Wait for uboot to be ready to receive characters on serial
 wait 3s
-
 break
-b.s fdt_overlay_apply
+
 Go
 
 ; Stop autoboot of U-Boot
