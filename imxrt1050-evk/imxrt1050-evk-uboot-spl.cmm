@@ -1,0 +1,40 @@
+; --------------------------------------------------------------------------------
+; @Title: U-boot SPL script for IMXRT1052 on IMXRT1050-EVK
+; @Description:
+;   SRAM: 0x20209000
+;
+;   Prerequisites:
+;   None
+;
+; @Keywords: ARM, Cortex-M7
+; @Author: Giulio Benetti <giulio.benetti@benettiengineering.com>
+; @Board: IMXRT1050-EVK
+; @Chip: IMXRT1051 IMXRT1052
+; --------------------------------------------------------------------------------
+
+; initialize and start the debugger
+SYStem.CPU IMXRT1052
+SYStem.CONFIG.DEBUGPORTTYPE SWD
+IF COMBIPROBE()||UTRACE()
+(
+  SYStem.CONFIG.CONNECTOR MIPI20T
+)
+SYStem.Option DUALPORT ON
+SYStem.MemAccess DAP
+SYStem.JtagClock CTCK 10MHz
+Trace.DISable
+SYStem.Up
+
+; set all FLEXRAM as OCRAM(01b) by setting FLEXRAM_BANK_CFG to 0x55555555(sram now is 512Kb)
+Data.Set A:0x400AC044 %LE %Long 0x55555555
+; use FLEXRAM_BANK_CFG to config FLEXRAM by setting FLEXRAM_BANK_CFG_SEL(bit 2)
+Data.Set A:0x400AC040 %LE %Long data.Long(A:0x400AC040)|0x4
+
+data.load.binary /home/giuliobenetti/git/imxrt/build-uboot-imxrt1050-evk/spl/u-boot-spl.bin 0x20209000
+data.load.elf /home/giuliobenetti/git/imxrt/build-uboot-imxrt1050-evk/spl/u-boot-spl /nocode
+
+r.s pc reset
+
+List.auto
+
+ENDDO
