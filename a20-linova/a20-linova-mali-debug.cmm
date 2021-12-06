@@ -1,0 +1,158 @@
+; --------------------------------------------------------------------------------
+; @Title: A20-Linova Mali debugging Allwinner A20
+; @Description:
+;   The example is generated for A20-LiNova* boards using an ICD.
+;   It will NOT run on any other board, but may be used as a template
+;   for others.
+; @Keywords: uboot, Allwinner, a20*, A20*
+; @Author: Giulio Benetti <giulio.benetti@benettiengineering.com>
+; @Board: A20-LiNova*
+; @Chip: A20*
+; @Copyright: (C) 2021 Benetti Engineering sas, licensed for use with TRACE32(R) only
+; --------------------------------------------------------------------------------
+; $Id: a20_linova_mali_debug.cmm
+
+LOCAL &uboot_path
+LOCAL &linux_path
+LOCAL &dtb_path
+LOCAL &ka_path
+LOCAL &awareness
+
+&uboot_path="/home/giuliobenetti/git/github/linova-u-boot"
+&linux_path="/home/giuliobenetti/git/github/linova-linux"
+&dtb_path="&linux_path/arch/arm/boot/dts"
+
+; Debugger Reset
+WinPAGE.RESet
+AREA.RESet
+WinPOS 0. 25. 75. 9. 0. 0. W000
+AREA.view
+ 
+PRINT "resetting..."
+
+RESet
+SYStem.CPU A20
+SYStem.CONFIG CoreNumber 1.
+CORE.ASSIGN 1.
+
+SYSTEM.RESETOUT ; hard reset
+SYStem.JTAGCLOCK 20MHz
+
+SYStem.Option DACR ON          ; give Debugger global write permissions
+TrOnchip.Set DABORT OFF        ; used by Linux for page miss!
+TrOnchip.Set PABORT OFF        ; used by Linux for page miss!
+TrOnchip.Set UNDEF OFF         ; my be used by Linux for FPU detection
+SYStem.Option MMUSPACES ON    ; enable space ids to virtual addresses
+SYStem.Option EnReset OFF
+
+SYStem.Up
+
+SETUP.IMASKASM ON          ; lock interrupts while single stepping
+SETUP.IMASKHLL ON          ; lock interrupts while single stepping
+
+; Load spl in sram
+data.load.auto &uboot_path/spl/u-boot-spl
+; Start and wait for spl to be executed and fail on sd-card boot
+; (because there's no sd-card inserted)
+Go
+Wait 1s
+Break
+
+PRINT "loading Linux image..."
+; Loading Linux image and DTB via ICD
+Data.LOAD.Binary &linux_path/arch/arm/boot/zImage 0x42000000
+; Load the Linux kernel symbols into the debugger
+PRINT "loading Linux kernel symbols..."
+Data.LOAD.Elf &linux_path/vmlinux /gnu /NoCODE
+; Load DTB
+PRINT "loading DTB..."
+Data.LOAD.Binary &dtb_path/sun7i-a20-linova1-ctp-4_3i-otg.dtb 0x43000000 /NoClear
+
+; Load real uboot
+Data.LOAD.Binary &uboot_path/u-boot.bin 0x4a000000 /NoClear
+r.s pc 0x4a000000
+
+; Open serial terminal window on ttyUSB0
+DO ~~/demo/etc/terminal/serial/term.cmm /dev/ttyUSB0 115200.
+
+; Starting the kernel
+Go
+PRINT "Starting Linux..."
+; Wait for uboot to be ready to receive characters on serial
+wait 3s
+; Stop autoboot of U-Boot
+TERM.Out 0x0a
+WAIT 0.5s
+; Set boot arguments
+TERM.Out "setenv bootargs console=ttyS0,115200 ip=192.168.111.100:192.168.111.1 root=/dev/nfs rw nfsroot=192.168.111.1:/opt/a20_linova1_ctp_4_3i/nfs drm_kms_helper.drm_fbdev_overalloc=200 rootwait panic=1" 0xa
+WAIT 0.5s
+; Boot Linux from memory: bootm <kernel>
+TERM.Out "bootz 0x42000000 - 0x43000000" 0x0a
+break
+
+Go.direct start_kernel /Onchip
+WAIT !run()
+
+  ; Map the virtual kernel symbols to physical addresses
+  ; to give the debugger access to it before CPU MMU is
+  ; initialized 
+  PRINT "initializing debugger MMU..."
+  MMU.FORMAT LINUXSWAP3 swapper_pg_dir 0xc0000000--0xdfffffff 0x40000000
+  TRANSlation.COMMON 0bf000000--0ffffffff     ; common area for kernel and processes
+  TRANSlation.TableWalk ON   ; debugger uses a table walk to decode virtual addresses
+  TRANSlation.ON
+
+  ; Initialize Linux Awareness
+  ; Note that the Linux awareness needs the kernel symbols to work 
+  IF STRing.SCAN(Data.STRing(linux_banner), "Linux version 2.", 0)==0
+  (
+    &ka_path="~~/demo/arm/kernel/linux/linux-2.x"
+    &awareness="linux.t32"
+  )
+  ELSE
+  (
+    &ka_path="~~/demo/arm/kernel/linux/linux-3.x"
+    &awareness="linux3.t32"
+  )
+  PRINT "initializing RTOS support..."
+  TASK.CONFIG &ka_path/&awareness      ; loads Linux awareness 
+  MENU.ReProgram &ka_path/linux        ; loads Linux menu 
+  ; Group kernel area to be displayed with red bar
+  GROUP.Create "kernel" 0xc0000000--0xffffffff /RED
+
+Go
+
+SYStem.Down
+SYStem.CONFIG CoreNumber 2.
+CORE.ASSIGN 1 2
+
+SYStem.JTAGCLOCK 20MHz
+
+SYStem.Option DACR ON          ; give Debugger global write permissions
+TrOnchip.Set DABORT OFF        ; used by Linux for page miss!
+TrOnchip.Set PABORT OFF        ; used by Linux for page miss!
+TrOnchip.Set UNDEF OFF         ; my be used by Linux for FPU detection
+SYStem.Option MMUSPACES ON     ; enable space ids to virtual addresses
+
+SYStem.Option EnReset OFF
+
+Break.Implementation Program Onchip
+
+SYStem.Mode Attach
+Break
+Mode.Hll
+
+Go
+
+WAIT 12s
+
+TERM.Out "root" 0x0a
+WAIT 0.5s
+TERM.Out "LiNova" 0x0a
+WAIT 0.5s
+
+do &ka_path/mod_debug mali
+
+List
+
+enddo
