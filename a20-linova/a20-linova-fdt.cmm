@@ -24,10 +24,10 @@ LOCAL &awareness
 &dtbo_path="/home/giuliobenetti/git/github/linova-overlays"
 
 ; Debugger Reset
-;WinPAGE.RESet
-;AREA.RESet
-;WinPOS 0. 25. 75. 9. 0. 0. W000
-;AREA.view
+WinPAGE.RESet
+AREA.RESet
+WinPOS 0. 25. 75. 9. 0. 0. W000
+AREA.view
 
 PRINT "resetting..."
 
