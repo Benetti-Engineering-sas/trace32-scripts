@@ -58,13 +58,17 @@ data.load.auto &uboot_path/spl/u-boot-spl
 go
 wait 1s
 break
+
 data.load.binary &uboot_path/u-boot.bin 0x4a000000
+data.load.auto &uboot_path/u-boot /nocode /noregister
 
-; load real u-boot into dram
-data.load.auto &uboot_path/u-boot Register(R4) /nocode
+r.s pc reset
 
-Register.Init
-r.s pc 0x4a000000
+go relocate_done
+wait !run()
+
+data.load.elf &uboot_path/u-boot Register(R4) /nocode
+step
 
 list.auto
 
