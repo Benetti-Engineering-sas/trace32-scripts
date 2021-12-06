@@ -1,6 +1,6 @@
 ; --------------------------------------------------------------------------------
 ; @Title: A20-Linova Linux debugging Allwinner A20
-; @Description: 
+; @Description:
 ;   The example is generated for A20-LiNova* boards using an ICD.
 ;   It will NOT run on any other board, but may be used as a template
 ;   for others.
@@ -103,32 +103,24 @@ break
 Go.direct start_kernel /Onchip
 WAIT !run()
 
-  ; Map the virtual kernel symbols to physical addresses
-  ; to give the debugger access to it before CPU MMU is
-  ; initialized
-  PRINT "initializing debugger MMU..."
-  MMU.FORMAT LINUXSWAP3 swapper_pg_dir 0xc0000000--0xdfffffff 0x40000000
-  TRANSlation.COMMON 0bf000000--0ffffffff     ; common area for kernel and processes
-  TRANSlation.TableWalk ON   ; debugger uses a table walk to decode virtual addresses
-  TRANSlation.ON
+; Map the virtual kernel symbols to physical addresses
+; to give the debugger access to it before CPU MMU is
+; initialized
+PRINT "initializing debugger MMU..."
+MMU.FORMAT LINUXSWAP3 swapper_pg_dir 0xc0000000--0xdfffffff 0x40000000
+TRANSlation.COMMON 0bf000000--0ffffffff     ; common area for kernel and processes
+TRANSlation.TableWalk ON   ; debugger uses a table walk to decode virtual addresses
+TRANSlation.ON
 
-  ; Initialize Linux Awareness
-  ; Note that the Linux awareness needs the kernel symbols to work
-  IF STRing.SCAN(Data.STRing(linux_banner), "Linux version 2.", 0)==0
-  (
-    &ka_path="~~/demo/arm/kernel/linux/linux-2.x"
-    &awareness="linux.t32"
-  )
-  ELSE
-  (
-    &ka_path="~~/demo/arm/kernel/linux/linux-3.x"
-    &awareness="linux3.t32"
-  )
-  PRINT "initializing RTOS support..."
-  TASK.CONFIG &ka_path/&awareness      ; loads Linux awareness
-  MENU.ReProgram &ka_path/linux        ; loads Linux menu
-  ; Group kernel area to be displayed with red bar
-  GROUP.Create "kernel" 0xc0000000--0xffffffff /RED
+; Initialize Linux Awareness
+&ka_path="~~/demo/arm/kernel/linux/linux-3.x"
+&awareness="linux3.t32"
+
+PRINT "initializing RTOS support..."
+TASK.CONFIG &ka_path/&awareness      ; loads Linux awareness
+MENU.ReProgram &ka_path/linux        ; loads Linux menu
+; Group kernel area to be displayed with red bar
+GROUP.Create "kernel" 0xc0000000--0xffffffff /RED
 
 Go.direct cpu_startup_entry /Onchip
 WAIT !run()
