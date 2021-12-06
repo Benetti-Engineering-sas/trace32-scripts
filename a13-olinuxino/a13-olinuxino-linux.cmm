@@ -6,7 +6,7 @@
 ;   for others.
 ; @Keywords: uboot, Allwinner, a13*, A13*
 ; @Author: Giulio Benetti <giulio.benetti@benettiengineering.com>
-; @Board: A13-OlinuXino*
+; @Board: A13-Olinuxino*
 ; @Chip: A13*
 ; @Copyright: (C) 1981-2021 Benetti Engineering sas, licensed for use with TRACE32(R) only
 ; --------------------------------------------------------------------------------
