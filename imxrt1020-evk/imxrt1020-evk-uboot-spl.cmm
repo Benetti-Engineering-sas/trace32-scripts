@@ -1,0 +1,46 @@
+; --------------------------------------------------------------------------------
+; @Title: U-boot SPL script for IMXRT1021 on IMXRT1020-EVK
+; @Description:
+;   SRAM: 0x20209000
+;
+;   Prerequisites:
+;   None
+;
+; @Keywords: ARM, Cortex-M7
+; @Author: Giulio Benetti <giulio.benetti@benettiengineering.com>
+; @Board: IMXRT1020-EVK
+; @Chip: IMXRT1021
+; --------------------------------------------------------------------------------
+
+&uboot_path="/home/giuliobenetti/git/upstream/imxrt/build-uboot-imxrt1020"
+
+; initialize and start the debugger
+SYStem.CPU IMXRT1021
+SYStem.CONFIG.DEBUGPORTTYPE SWD
+IF COMBIPROBE()||UTRACE()
+(
+  SYStem.CONFIG.CONNECTOR MIPI20T
+)
+SYStem.Option DUALPORT ON
+SYStem.MemAccess DAP
+SYStem.JtagClock CTCK 10MHz
+Trace.DISable
+SYStem.Up
+
+; set all FLEXRAM as OCRAM(01b) by setting FLEXRAM_BANK_CFG to 0x00005555(sram now is 256Kb)
+Data.Set A:0x400AC044 %LE %Long 0x00005555
+; use FLEXRAM_BANK_CFG to config FLEXRAM by setting FLEXRAM_BANK_CFG_SEL(bit 2)
+Data.Set A:0x400AC040 %LE %Long data.Long(A:0x400AC040)|0x4
+
+; let BROM to disable RTWDOG like it does when loading
+; from sd-card or some other medium
+go T:0x2138CA
+
+data.load.binary &uboot_path/spl/u-boot-spl.bin 0x20209000
+data.load.elf &uboot_path/spl/u-boot-spl /nocode
+
+r.s pc reset
+
+List.auto
+
+ENDDO
