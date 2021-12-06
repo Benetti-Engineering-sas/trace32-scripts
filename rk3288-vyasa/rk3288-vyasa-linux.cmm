@@ -1,0 +1,138 @@
+; --------------------------------------------------------------------------------
+; @Title: RK3288-Vyasa Linux debugging Rockchip RK3288
+; @Description:
+;   The example is generated for Rockchip RK3288
+; @Keywords: linux, Rockchip, rk3288*, RK3288*
+; @Author: Giulio Benetti <giulio.benetti@benettiengineering.com>
+; @Board: RK3288-Vyasa*
+; @Chip: RK3288*
+; @Copyright: (C) 1989-2015 Lauterbach GmbH, licensed for use with TRACE32(R) only
+; --------------------------------------------------------------------------------
+; $Id: linux.cmm
+
+LOCAL &uboot_path
+LOCAL &linux_path
+LOCAL &dtb_path
+LOCAL &dtbo_path
+LOCAL &ka_path
+LOCAL &awareness
+
+&uboot_path="/home/giuliobenetti/git/u-boot"
+&linux_path="/home/giuliobenetti/git/kernel"
+&dtb_path="/home/giuliobenetti/git/kernel/arch/arm/boot/dts"
+
+; Debugger Reset
+WinPAGE.RESet
+AREA.RESet
+WinPOS 0. 25. 75. 9. 0. 0. W000
+AREA.view
+
+PRINT "resetting..."
+
+RESet
+SYStem.CPU RK3288
+
+SYSTEM.RESETOUT ; hard reset
+SYStem.JTAGCLOCK 20MHz
+
+SYStem.Option DACR ON          ; give Debugger global write permissions
+TrOnchip.Set DABORT OFF        ; used by Linux for page miss!
+TrOnchip.Set PABORT OFF        ; used by Linux for page miss!
+TrOnchip.Set UNDEF OFF         ; my be used by Linux for FPU detection
+SYStem.Option MMUSPACES OFF    ; disable space to allow loading and running u-boot
+SETUP.IMASKASM ON          ; lock interrupts while single stepping
+SETUP.IMASKHLL ON          ; lock interrupts while single stepping
+
+SYStem.Up
+
+;load tpl in sram
+data.load.binary &uboot_path/tpl/u-boot-tpl.bin 0xff704000
+data.load.elf &uboot_path/tpl/u-boot-tpl /nocode
+Register.Init
+r.s pc 0xff704000
+
+; start and wait for tpl to pass sdram_init
+go.direct back_to_bootrom
+WAIT !run()
+break
+
+;load spl in sdram
+data.load.binary &uboot_path/spl/u-boot-spl-dtb.bin 0x0
+data.load.elf &uboot_path/spl/u-boot-spl /nocode
+Register.Init
+r.s pc 0x00000020
+
+; start and wait for spl to hang
+go.direct hang
+WAIT !run()
+
+data.load.binary &uboot_path/u-boot-dtb.bin 0x00200000
+data.load.elf &uboot_path/u-boot /nocode; uncomment this to debug before relocation
+;data.load.elf &uboot_path/u-boot 0x14F70000 /nocode /noreg /noclear
+Register.Init
+r.s pc 0x00200000
+
+go
+wait 3s
+break
+
+PRINT "loading Linux image..."
+; Loading Linux image and DTB via ICD
+Data.LOAD.Binary &linux_path/arch/arm/boot/zImage 0x02008000
+; Load the Linux kernel symbols into the debugger
+PRINT "loading Linux kernel symbols..."
+Data.LOAD.Elf &linux_path/vmlinux /gnu /NoCODE
+; Load DTB
+PRINT "loading DTB..."
+Data.LOAD.Binary &dtb_path/rk3288-vyasa.dtb 0x08300000 /NoClear
+
+; Open serial terminal window on ttyUSB0
+DO ~~/demo/etc/terminal/serial/term.cmm /dev/ttyUSB0 115200.
+
+; Starting the kernel
+Go
+PRINT "Starting Linux..."
+; Wait for uboot to be ready to receive characters on serial
+;wait 3s
+; Stop autoboot of U-Boot
+TERM.Out 0x03
+WAIT 0.1s
+; Set boot arguments
+TERM.Out "setenv bootargs console=ttyS2,115200 earlyprintk root=/dev/mmcblk0p1 rootwait panic=10" 0x0a
+WAIT 0.1s
+
+TERM.Out "bootz 0x02008000 - 0x08300000" 0x0a
+WAIT 0.1s
+break
+
+Go.direct start_kernel /Onchip
+WAIT !run()
+
+; enable MMU option since u-boot has already setup MMU
+SYStem.Option MMUSPACES ON
+
+; Map the virtual kernel symbols to physical addresses
+; to give the debugger access to it before CPU MMU is
+; initialized
+PRINT "initializing debugger MMU..."
+SYStem.Option MMUSPACES ON
+MMU.FORMAT LINUX swapper_pg_dir 0xc0000000--0xffffffff 0x00000000
+TRANSlation.COMMON 0xc0000000--0xffffffff     ; common area for kernel and processes
+TRANSlation.TableWalk ON   ; debugger uses a table walk to decode virtual addresses
+TRANSlation.ON
+
+; Initialize Linux Awareness
+&ka_path="~~/demo/arm/kernel/linux/awareness"
+&awareness="linux.t32"
+
+PRINT "initializing RTOS support..."
+TASK.CONFIG &ka_path/&awareness      ; loads Linux awareness
+MENU.ReProgram &ka_path/linux        ; loads Linux menu
+; Group kernel area to be displayed with red bar
+GROUP.Create "kernel" 0xc0000000--0xffffffff /RED
+
+List.Hll
+
+break.config.method.program Onchip
+
+enddo
