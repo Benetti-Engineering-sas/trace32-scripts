@@ -12,6 +12,8 @@
 ; @Chip: IMXRT1051 IMXRT1052
 ; --------------------------------------------------------------------------------
 
+&uboot_path="/home/giuliobenetti/git/upstream/giuliobenetti/build-uboot-imxrt1050"
+
 ; initialize and start the debugger
 SYStem.CPU IMXRT1052
 SYStem.CONFIG.DEBUGPORTTYPE SWD
@@ -30,8 +32,8 @@ Data.Set A:0x400AC044 %LE %Long 0x55555555
 ; use FLEXRAM_BANK_CFG to config FLEXRAM by setting FLEXRAM_BANK_CFG_SEL(bit 2)
 Data.Set A:0x400AC040 %LE %Long data.Long(A:0x400AC040)|0x4
 
-data.load.binary /home/giuliobenetti/git/imxrt/build-uboot-imxrt1050-evk/spl/u-boot-spl.bin 0x20209000
-data.load.elf /home/giuliobenetti/git/imxrt/build-uboot-imxrt1050-evk/spl/u-boot-spl /nocode
+data.load.binary &uboot_path/spl/u-boot-spl.bin 0x20209000
+data.load.elf &uboot_path/spl/u-boot-spl /nocode
 
 r.s pc reset
 
