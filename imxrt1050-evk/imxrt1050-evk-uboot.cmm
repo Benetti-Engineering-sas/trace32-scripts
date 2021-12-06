@@ -15,21 +15,19 @@
 
 &uboot_path="/home/giuliobenetti/git/upstream/giuliobenetti/build-uboot-imxrt1050"
 
-;b.reset
-
-  ; initialize and start the debugger
-  SYStem.CPU IMXRT1052
-  SYStem.CONFIG.DEBUGPORTTYPE SWD
-  IF COMBIPROBE()||UTRACE()
-  (
-    SYStem.CONFIG.CONNECTOR MIPI20T
-  )
-  SYStem.Option DUALPORT ON
-  SYStem.MemAccess DAP
-  SYStem.JtagClock CTCK 10MHz
-  Trace.DISable
-  SYStem.Up
-  Break.METHOD Program Onchip 
+; initialize and start the debugger
+SYStem.CPU IMXRT1052
+SYStem.CONFIG.DEBUGPORTTYPE SWD
+IF COMBIPROBE()||UTRACE()
+(
+  SYStem.CONFIG.CONNECTOR MIPI20T
+)
+SYStem.Option DUALPORT ON
+SYStem.MemAccess DAP
+SYStem.JtagClock CTCK 10MHz
+Trace.DISable
+SYStem.Up
+Break.METHOD Program Onchip
 
 ; set all FLEXRAM as OCRAM(01b) by setting FLEXRAM_BANK_CFG to 0x55555555(sram now is 512Kb)
 Data.Set A:0x400AC044 %LE %Long 0x55555555
