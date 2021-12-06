@@ -30,7 +30,7 @@ SYStem.JTAGCLOCK 20MHz
 
 SYStem.Up
 
-SETUP.IMASKASM ON          ; lock interrupts while single stepping
+SETUP.IMASKASM ON ; lock interrupts while single stepping
 
 ;load tpl in sram
 data.load.binary &uboot_path/tpl/u-boot-tpl.bin 0xff704000
