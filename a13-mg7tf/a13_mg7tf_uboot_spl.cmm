@@ -1,0 +1,69 @@
+; --------------------------------------------------------------------------------
+; @Title: Genemek A13-MG7TF U-Boot SPL debugging Allwinner A13
+; @Description:
+;   The example is generated for A13-MG7TF* boards using an ICD.
+;   It will NOT run on any other board, but may be used as a template
+;   for others.
+; @Keywords: uboot, Allwinner, a13*, A13*
+; @Author: Giulio Benetti <giulio.benetti@benettiengineering.com>
+; @Board: Genemek-A13-MG7TF*
+; @Chip: A13*
+; @Copyright: (C) 2021 Benetti Engineering sas, licensed for use with TRACE32(R) only
+; --------------------------------------------------------------------------------
+
+LOCAL &uboot_path
+LOCAL &ka_path
+LOCAL &awareness
+
+&bsp_path="/home/giuliobenetti/git/genemek/cedrus/output-a13-olinuxino-nfsroot-linux-5.14-gstreamer-1.19.3"
+&uboot_path="&bsp_path/build/uboot-2021.10"
+
+; Debugger Reset
+WinPAGE.RESet
+AREA.RESet
+WinPOS 0. 25. 75. 9. 0. 0. W000
+AREA.view
+
+PRINT "resetting..."
+
+RESet
+SYStem.CPU CortexA8
+
+SYSTEM.RESETOUT ; hard reset
+SYStem.JTAGCLOCK 20MHz
+
+; Allwinner A13 Details
+SYStem.CONFIG MEMORYACCESSPORT 0.
+SYStem.CONFIG DEBUGACCESSPORT 1.
+SYStem.CONFIG COREDEBUG.Base 0xAC328000
+
+SYStem.Option DACR ON          ; give Debugger global write permissions
+TrOnchip.Set DABORT OFF        ; used by Linux for page miss!
+TrOnchip.Set PABORT OFF        ; used by Linux for page miss!
+TrOnchip.Set UNDEF OFF         ; my be used by Linux for FPU detection
+SYStem.Option MMUSPACES OFF    ; enable space ids to virtual addresses
+SYStem.Option EnReset OFF
+SYStem.Option TRST ON
+
+; Allwinner A13 Details
+MAP.BONCHIP 0xffff0000--0xffff7fff
+
+Break.Implementation Program Onchip
+
+SETUP.IMASKASM ON          ; lock interrupts while single stepping
+SETUP.IMASKHLL ON          ; lock interrupts while single stepping in HLL
+
+SYStem.Up
+
+; Load spl in sram
+data.load.auto &uboot_path/spl/u-boot-spl
+
+Mode.Hll
+List
+
+break.config.method.program Onchip
+
+Go.direct dramc_init_helper
+WAIT !run()
+
+enddo
