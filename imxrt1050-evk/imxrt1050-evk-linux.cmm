@@ -115,8 +115,8 @@ WAIT !run()
 
 ; Initialize Linux Awareness
 ; Note that the Linux awareness needs the kernel symbols to work
-&ka_path="~~/demo/arm/kernel/uclinux/linux-3.x"
-&awareness="uclinux3.t32"
+&ka_path="~~/demo/arm/kernel/uclinux"
+&awareness="uclinux.t32"
 
 PRINT "initializing RTOS support..."
 TASK.CONFIG &ka_path/&awareness      ; loads Linux awareness
