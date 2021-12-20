@@ -12,13 +12,9 @@
 ; --------------------------------------------------------------------------------
 
 LOCAL &uboot_path
-LOCAL &ka_path
-LOCAL &awareness
 
 &bsp_path="/home/giuliobenetti/git/cedrus/output-a20-olinuxino-nfsroot-linux-5.14-gstreamer-1.19.3"
 &uboot_path="&bsp_path/build/uboot-2021.10"
-&linux_path="&bsp_path/build/linux-5.14.21"
-&dtb_path="&bsp_path/images"
 
 ; Debugger Reset
 WinPAGE.RESet
