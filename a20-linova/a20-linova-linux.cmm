@@ -14,7 +14,6 @@
 LOCAL &uboot_path
 LOCAL &linux_path
 LOCAL &dtb_path
-LOCAL &dtbo_path
 LOCAL &ka_path
 LOCAL &awareness
 
