@@ -1,0 +1,66 @@
+; --------------------------------------------------------------------------------
+; @Title: A20-OlinuXino U-Boot debugging Allwinner A20
+; @Description:
+;   The example is generated for A20-OlinuXino* boards using an ICD.
+;   It will NOT run on any other board, but may be used as a template
+;   for others.
+; @Keywords: uboot, Allwinner, a20*, A20*
+; @Author: Giulio Benetti <giulio.benetti@benettiengineering.com>
+; @Board: A20-OlinuXino*
+; @Chip: A20*
+; @Copyright: (C) 1981-2021 Benetti Engineering sas, licensed for use with TRACE32(R) only
+; --------------------------------------------------------------------------------
+
+LOCAL &uboot_path
+
+&bsp_path="/home/giuliobenetti/git/cedrus/output-a20-olinuxino-nfsroot-linux-5.14-gstreamer-1.19.3"
+&uboot_path="&bsp_path/build/uboot-2021.10"
+
+; Debugger Reset
+WinPAGE.RESet
+AREA.RESet
+WinPOS 0. 25. 75. 9. 0. 0. W000
+AREA.view
+
+PRINT "resetting..."
+
+RESet
+SYStem.CPU A20
+SYStem.CONFIG CoreNumber 1.
+CORE.ASSIGN 1.
+
+SYSTEM.RESETOUT ; hard reset
+SYStem.JTAGCLOCK 20MHz
+
+SYStem.Option DACR ON          ; give Debugger global write permissions
+TrOnchip.Set DABORT OFF        ; used by Linux for page miss!
+TrOnchip.Set PABORT OFF        ; used by Linux for page miss!
+TrOnchip.Set UNDEF OFF         ; my be used by Linux for FPU detection
+SYStem.Option MMUSPACES OFF    ; enable space ids to virtual addresses
+SYStem.Option EnReset OFF
+SYStem.Option TRST ON
+
+SETUP.IMASKASM ON          ; lock interrupts while single stepping
+SETUP.IMASKHLL ON          ; lock interrupts while single stepping in HLL
+
+SYStem.Up
+
+; Load spl in sram
+data.load.auto &uboot_path/spl/u-boot-spl
+
+; Start and wait for spl to be executed and fail on sd-card boot
+; (because there's no sd-card inserted)
+Go
+Wait 1s
+Break
+
+; Load real uboot
+Data.LOAD.Binary &uboot_path/u-boot.bin 0x4a000000 /NoClear
+data.load.auto &uboot_path/u-boot /NoCODE
+Register.Init
+r.s pc 0x4a000000
+
+Mode.Hll
+List
+
+enddo
