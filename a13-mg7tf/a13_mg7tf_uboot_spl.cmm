@@ -59,7 +59,4 @@ data.load.auto &uboot_path/spl/u-boot-spl
 Mode.Hll
 List
 
-Go.direct dramc_init_helper
-WAIT !run()
-
 enddo
