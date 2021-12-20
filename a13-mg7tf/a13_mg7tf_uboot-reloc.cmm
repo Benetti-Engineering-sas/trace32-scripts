@@ -80,6 +80,4 @@ step
 Mode.Hll
 List
 
-break.config.method.program Onchip
-
 enddo
