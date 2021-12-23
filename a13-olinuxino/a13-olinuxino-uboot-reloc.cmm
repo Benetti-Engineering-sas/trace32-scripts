@@ -48,8 +48,6 @@ SYStem.Option TRST ON
 ; Allwinner A13 BROM
 MAP.BONCHIP 0xffff0000--0xffff7fff
 
-Break.Implementation Program Onchip
-
 SETUP.IMASKASM ON          ; lock interrupts while single stepping
 SETUP.IMASKHLL ON          ; lock interrupts while single stepping in HLL
 
@@ -79,7 +77,5 @@ step
 
 Mode.Hll
 List
-
-break.config.method.program Onchip
 
 enddo
