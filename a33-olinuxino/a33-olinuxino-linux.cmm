@@ -1,0 +1,156 @@
+; --------------------------------------------------------------------------------
+; @Title: A33-OlinuXino Linux debugging Allwinner A33
+; @Description:
+;   The example is generated for A33-OlinuXino* boards using an ICD.
+;   It will NOT run on any other board, but may be used as a template
+;   for others.
+; @Keywords: uboot, Allwinner, a33*, A3*
+; @Author: Giulio Benetti <giulio.benetti@benettiengineering.com>
+; @Board: A33-OlinuXino*
+; @Chip: A33*
+; @Copyright: (C) 1981-2021 Benetti Engineering sas, licensed for use with TRACE32(R) only
+; --------------------------------------------------------------------------------
+
+LOCAL &uboot_path
+LOCAL &linux_path
+LOCAL &dtb_path
+LOCAL &ka_path
+LOCAL &awareness
+
+&bsp_path="/home/giuliobenetti/git/genemek/cedrus/output-a33-olinuxino-nfsroot-linux-5.15-gstreamer-1.19.3"
+&uboot_path="&bsp_path/build/uboot-2021.10"
+&linux_path="&bsp_path/build/linux-5.15.7"
+&dtb_path="&bsp_path/images"
+
+; Debugger Reset
+WinPAGE.RESet
+AREA.RESet
+WinPOS 0. 25. 75. 9. 0. 0. W000
+AREA.view
+
+PRINT "resetting..."
+
+RESet
+SYStem.CPU CortexA7MPCore
+SYStem.CONFIG CoreNumber 4.
+CORE.ASSIGN 1.
+
+SYSTEM.RESETOUT ; hard reset
+SYStem.JTAGCLOCK 20MHz
+
+; Allwinner A33 Details
+SYStem.CONFIG MEMORYACCESSPORT 0.
+SYStem.CONFIG DEBUGACCESSPORT 1.
+SYStem.CONFIG COREDEBUG.Base DAP:0x80110000 DAP:0x80112000 DAP:0x80114000 DAP:0x80116000
+SYStem.CONFIG BMC.Base DAP:0x80111000 DAP:0x80113000 DAP:0x80115000 DAP:0x80117000
+
+SYStem.Option DACR ON          ; give Debugger global write permissions
+TrOnchip.Set DABORT OFF        ; used by Linux for page miss!
+TrOnchip.Set PABORT OFF        ; used by Linux for page miss!
+TrOnchip.Set UNDEF OFF         ; my be used by Linux for FPU detection
+SYStem.Option MMUSPACES OFF    ; enable space ids to virtual addresses
+SYStem.Option EnReset OFF
+SYStem.Option TRST OFF
+
+; Allwinner A33 BROM
+MAP.BONCHIP 0xffff0000--0xffff7fff
+
+SETUP.IMASKASM ON          ; lock interrupts while single stepping
+SETUP.IMASKHLL ON          ; lock interrupts while single stepping in HLL
+
+SYStem.Up
+
+; Load spl in sram
+data.load.auto &uboot_path/spl/u-boot-spl
+
+; Start and wait for spl to be executed and fail on sd-card boot
+; (because there's no sd-card inserted)
+Go
+Wait 1s
+Break
+
+; Load real uboot
+Data.LOAD.Binary &uboot_path/u-boot.bin 0x4a000000 /NoClear
+Register.Init
+r.s pc 0x4a000000
+
+PRINT "loading Linux image..."
+; Loading Linux image and DTB via ICD
+Data.LOAD.Binary &linux_path/arch/arm/boot/zImage 0x42000000
+; Load the Linux kernel symbols into the debugger
+PRINT "loading Linux kernel symbols..."
+Data.LOAD.Elf &linux_path/vmlinux /gnu /NoCODE
+; Load DTB
+PRINT "loading DTB..."
+Data.LOAD.Binary &dtb_path/sun8i-a33-olinuxino.dtb 0x43000000 /NoClear
+
+; Open serial terminal window on ttyUSB0
+DO ~~/demo/etc/terminal/serial/term.cmm /dev/ttyUSB1 115200.
+
+TERM.SIZE 500. 25.
+
+; Starting u-boot
+Go
+PRINT "Starting Linux..."
+; Wait for uboot to be ready to receive characters on serial
+wait 3s
+; Stop autoboot of U-Boot
+TERM.Out 0x0a
+WAIT 0.1s
+; Wait for uboot to be ready to receive characters on serial
+wait 1s
+; Set boot arguments few characters per time because of A33 uart RX driver bug
+TERM.Out "setenv bootargs console=ttyS0,115200 ip=192.168.111.100::"
+WAIT 0.2s
+TERM.Out ":255.255.255.0::usb0:off root=/dev/nfs rw nfsroot=192.168.111.1:"
+WAIT 0.2s
+TERM.Out "/home/giuliobenetti/git/genemek/cedrus"
+WAIT 0.2s
+TERM.Out "/output-a33-olinuxino-nfsroot-linux-5.15-gstreamer-1.19.3/"
+WAIT 0.2s
+TERM.Out "images/nfs,tcp,v3 rootwait panic=10" 0x0a
+WAIT 0.2s
+
+TERM.Out "bootz 0x42000000 - 0x43000000" 0x0a
+WAIT 0.1s
+break
+
+Go.direct start_kernel
+WAIT !run()
+
+SYStem.Option MMUSPACES ON    ; enable space ids to virtual addresses
+
+; Map the virtual kernel symbols to physical addresses
+; to give the debugger access to it before CPU MMU is
+; initialized
+PRINT "initializing debugger MMU..."
+MMU.FORMAT LINUX swapper_pg_dir 0xc0000000--0xffffffff 0xC0000000
+TRANSlation.COMMON 0bf000000--0ffffffff     ; common area for kernel and processes
+TRANSlation.TableWalk ON   ; debugger uses a table walk to decode virtual addresses
+TRANSlation.ON
+
+Go.direct cpu_startup_entry
+WAIT !run()
+
+SYStem.Down
+CORE.ASSIGN 1 2 3 4
+SYStem.Mode Attach
+
+; Initialize Linux Awareness
+PRINT "initializing RTOS support..."
+TASK.CONFIG ~~/demo/arm/kernel/linux/awareness/linux.t32
+MENU.ReProgram ~~/demo/arm/kernel/linux/awareness/linux.men
+
+; Group kernel area to be displayed with red bar
+GROUP.Create "kernel" 0xc0000000--0xffffffff /RED
+
+Mode.Hll
+List
+
+TASK.SYMbol.Option ROOTPATH "&bsp_path/images/nfs"
+TASK.SYMbol.Option AutoLoad CURRLIB
+Symbol.autoload.CHECK ON
+
+;Go
+
+enddo
