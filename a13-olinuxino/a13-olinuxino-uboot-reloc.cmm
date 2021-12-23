@@ -68,7 +68,7 @@ data.load.auto &uboot_path/u-boot /NoCODE
 Register.Init
 r.s pc 0x4a000000
 
-Go.direct relocate_done /Onchip
+Go.direct relocate_done
 WAIT !run()
 
 ; Load symbols to relocate memory pointed by R4 register
