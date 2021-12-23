@@ -13,7 +13,7 @@
 
 LOCAL &uboot_path
 
-&bsp_path="/home/giuliobenetti/git/genemek/cedrus/output-a13-olinuxino-nfsroot-linux-5.14-gstreamer-1.19.3"
+&bsp_path="/home/giuliobenetti/git/genemek/cedrus/output-a13-olinuxino-nfsroot-linux-5.15-gstreamer-1.19.3"
 &uboot_path="&bsp_path/build/uboot-2021.10"
 
 ; Debugger Reset
