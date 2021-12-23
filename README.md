@@ -1,4 +1,4 @@
-# Trace32-Sunxi-Scripts
+# Trace32-Scripts
 A collection of board specific trace32 .cmm scripts.
 
 Rules to contribute according to Lauterbach policies:
