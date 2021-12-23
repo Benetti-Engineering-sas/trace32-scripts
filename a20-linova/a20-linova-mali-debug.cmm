@@ -50,7 +50,8 @@ MAP.BONCHIP 0xffff0000--0xffff7fff
 SYStem.Up
 
 SETUP.IMASKASM ON          ; lock interrupts while single stepping
-SETUP.IMASKHLL ON          ; lock interrupts while single stepping
+SETUP.IMASKHLL ON          ; lock interrupts while single stepping in HLL
+
 
 ; Load spl in sram
 data.load.auto &uboot_path/spl/u-boot-spl
