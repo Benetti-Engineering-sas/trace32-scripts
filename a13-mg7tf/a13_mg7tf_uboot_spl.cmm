@@ -43,7 +43,7 @@ SYStem.Option MMUSPACES OFF    ; enable space ids to virtual addresses
 SYStem.Option EnReset OFF
 SYStem.Option TRST ON
 
-; Allwinner A13 Details
+; Allwinner A13 BROM
 MAP.BONCHIP 0xffff0000--0xffff7fff
 
 Break.Implementation Program Onchip
