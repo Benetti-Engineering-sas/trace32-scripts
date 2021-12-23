@@ -145,8 +145,6 @@ Go
 Mode.Hll
 List
 
-break.config.method.program Onchip
-
 TASK.SYMbol.Option ROOTPATH "&bsp_path/images/nfs"
 TASK.sYmbol.Option AutoLoad CURRLIB
 Symbol.autoload.CHECK ON
