@@ -54,6 +54,4 @@ data.load.auto &uboot_path/spl/u-boot-spl
 Mode.Hll
 List
 
-break.config.method.program Onchip
-
 enddo
