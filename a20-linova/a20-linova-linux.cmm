@@ -101,7 +101,7 @@ WAIT 0.5s
 TERM.Out "bootz 0x42000000 - 0x43000000" 0x0a
 break
 
-Go.direct start_kernel /Onchip
+Go.direct start_kernel
 WAIT !run()
 
 ; Map the virtual kernel symbols to physical addresses
@@ -123,7 +123,7 @@ MENU.ReProgram &ka_path/linux        ; loads Linux menu
 ; Group kernel area to be displayed with red bar
 GROUP.Create "kernel" 0xc0000000--0xffffffff /RED
 
-Go.direct cpu_startup_entry /Onchip
+Go.direct cpu_startup_entry
 WAIT !run()
 
 SYStem.Down
