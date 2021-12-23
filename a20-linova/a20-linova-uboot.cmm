@@ -45,8 +45,6 @@ SYStem.Option EnReset OFF
 
 ; Allwinner A20 BROM
 MAP.BONCHIP 0xffff0000--0xffff7fff
-Break.Implementation Program Onchip
-
 SYStem.Up
 
 SETUP.IMASKASM ON          ; lock interrupts while single stepping
