@@ -45,6 +45,8 @@ TrOnchip.Set UNDEF OFF         ; my be used by Linux for FPU detection
 SYStem.Option MMUSPACES ON    ; enable space ids to virtual addresses
 SYStem.Option EnReset OFF
 
+; Allwinner A20 BROM
+MAP.BONCHIP 0xffff0000--0xffff7fff
 SYStem.Up
 
 SETUP.IMASKASM ON          ; lock interrupts while single stepping
