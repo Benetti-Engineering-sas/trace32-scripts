@@ -111,7 +111,7 @@ TERM.Out "bootz 0x42000000 - 0x43000000" 0x0a
 WAIT 0.1s
 break
 
-Go.direct start_kernel /Onchip
+Go.direct start_kernel
 WAIT !run()
 
 SYStem.Option MMUSPACES ON    ; enable space ids to virtual addresses
@@ -133,7 +133,7 @@ MENU.ReProgram ~~/demo/arm/kernel/linux/awareness/linux.men
 ; Group kernel area to be displayed with red bar
 GROUP.Create "kernel" 0xc0000000--0xffffffff /RED
 
-Go.direct cpu_startup_entry /Onchip
+Go.direct cpu_startup_entry
 WAIT !run()
 
 Go
