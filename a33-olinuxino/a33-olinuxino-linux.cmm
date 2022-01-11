@@ -145,13 +145,13 @@ MENU.ReProgram ~~/demo/arm/kernel/linux/awareness/linux.men
 ; Group kernel area to be displayed with red bar
 GROUP.Create "kernel" 0xc0000000--0xffffffff /RED
 
+Go
+
 Mode.Hll
 List
 
 TASK.SYMbol.Option ROOTPATH "&bsp_path/images/nfs"
 TASK.SYMbol.Option AutoLoad CURRLIB
 Symbol.autoload.CHECK ON
-
-;Go
 
 enddo
