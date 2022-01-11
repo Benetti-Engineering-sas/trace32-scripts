@@ -133,6 +133,4 @@ GROUP.Create "kernel" 0xc0000000--0xffffffff /RED
 
 List.Hll
 
-break.config.method.program Onchip
-
 enddo
