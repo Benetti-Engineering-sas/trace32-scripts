@@ -131,7 +131,7 @@ MENU.ReProgram ~~/demo/arm/kernel/linux/awareness/linux.men
 ; Group kernel area to be displayed with red bar
 GROUP.Create "kernel" 0xc0000000--0xffffffff /RED
 
-Go.direct cpu_startup_entry
+Go.direct smp_cpus_done
 WAIT !run()
 
 SYStem.Down
