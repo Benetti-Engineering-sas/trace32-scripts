@@ -111,10 +111,11 @@ TERM.Out "bootz 0x42000000 - 0x43000000" 0x0a
 WAIT 0.1s
 break
 
+; U-Boot already enabled MMU, so we can enable MMUSPACES already
+SYStem.Option MMUSPACES ON    ; enable space ids to virtual addresses
+
 Go.direct start_kernel
 WAIT !run()
-
-SYStem.Option MMUSPACES ON    ; enable space ids to virtual addresses
 
 ; Map the virtual kernel symbols to physical addresses
 ; to give the debugger access to it before CPU MMU is
