@@ -93,7 +93,7 @@ TERM.Out 0x0a
 WAIT 0.1s
 ; Wait for uboot to be ready to receive characters on serial
 wait 3s
-; Set boot arguments few characters per time because of A13 uart RX driver bug
+; Set boot arguments few characters per time because of A20 uart RX driver bug
 TERM.Out "setenv bootargs console=ttyS0,115200 ip=192.168.111.100::"
 WAIT 0.2s
 TERM.Out ":255.255.255.0::usb0:off root=/dev/nfs rw nfsroot=192.168.111.1:"
