@@ -125,7 +125,7 @@ WAIT !run()
 ; to give the debugger access to it before CPU MMU is
 ; initialized
 PRINT "initializing debugger MMU..."
-MMU.FORMAT LINUX swapper_pg_dir 0xc0000000--0xffffffff 0xC0000000
+MMU.FORMAT LINUX swapper_pg_dir 0xc0000000--0xffffffff 0x40000000
 TRANSlation.COMMON 0bf000000--0ffffffff     ; common area for kernel and processes
 TRANSlation.TableWalk ON   ; debugger uses a table walk to decode virtual addresses
 TRANSlation.ON
