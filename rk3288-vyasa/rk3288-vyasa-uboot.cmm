@@ -28,9 +28,15 @@ SYStem.CPU RK3288
 SYSTEM.RESETOUT ; hard reset
 SYStem.JTAGCLOCK 20MHz
 
-SYStem.Up
+SYStem.Option DACR ON          ; give Debugger global write permissions
+TrOnchip.Set DABORT OFF        ; used by Linux for page miss!
+TrOnchip.Set PABORT OFF        ; used by Linux for page miss!
+TrOnchip.Set UNDEF OFF         ; my be used by Linux for FPU detection
+SYStem.Option MMUSPACES OFF    ; disable space to allow loading and running u-boot
+SETUP.IMASKASM ON          ; lock interrupts while single stepping
+SETUP.IMASKHLL ON          ; lock interrupts while single stepping
 
-SETUP.IMASKASM ON ; lock interrupts while single stepping
+SYStem.Up
 
 ;load tpl in sram
 data.load.binary &uboot_path/tpl/u-boot-tpl.bin 0xff704000
