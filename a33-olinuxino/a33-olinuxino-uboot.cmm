@@ -25,7 +25,6 @@ AREA.view
 PRINT "resetting..."
 
 RESet
-SYStem.CPU A20
 SYStem.CPU CortexA7MPCore
 SYStem.CONFIG CoreNumber 4.
 CORE.ASSIGN 1.
