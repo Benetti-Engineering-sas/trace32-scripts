@@ -36,7 +36,7 @@ SYStem.CONFIG CoreNumber 1.
 CORE.ASSIGN 1.
 
 SYSTEM.RESETOUT ; hard reset
-SYStem.JTAGCLOCK 60MHz
+SYStem.JTAGCLOCK 20MHz
 
 SYStem.Option DACR ON          ; give Debugger global write permissions
 TrOnchip.Set DABORT OFF        ; used by Linux for page miss!
