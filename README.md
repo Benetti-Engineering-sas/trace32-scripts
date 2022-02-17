@@ -1,5 +1,5 @@
-# Trace32-Scripts
-A collection of board specific trace32 .cmm scripts.
+# TRACE32-Scripts
+A collection of board specific TRACE32 .cmm scripts.
 
 Rules to contribute according to Lauterbach policies:
 - The copyright line must report correct author, not Lauterbach.
