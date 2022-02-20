@@ -6,4 +6,4 @@ Rules to contribute according to Lauterbach policies:
 - The $Id must be removed. It is auto generated and updated by Lauterbach's
   version control system.
 - Keep meta tags in order to give useful content since scripts can be integrated
-  into demo folder. In this case Trace32 script search is able to find them.
+  into demo folder. In this case TRACE32 script search is able to find them.
