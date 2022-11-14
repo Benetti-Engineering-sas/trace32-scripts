@@ -1,0 +1,145 @@
+; --------------------------------------------------------------------------------
+; @Title: IMX6ULL-EVK Linux debugging NXP i.MX6ULL
+; @Description:
+;   The example is generated for * boards using an ICD.
+;   It will NOT run on any other board, but may be used as a template
+;   for others.
+; @Keywords: uboot, Nxp, imx6ull*, IMX6ULL*
+; @Author: Giulio Benetti <giulio.benetti@benettiengineering.com>
+; @Board: IMX6ULL-EVK*
+; @Chip: IMX6ULL*
+; @Copyright: (C) 1981-2022 Benetti Engineering sas, licensed for use with TRACE32(R) only
+; --------------------------------------------------------------------------------
+
+LOCAL &uboot_path
+LOCAL &ka_path
+LOCAL &awareness
+
+&uboot_path="/home/giuliobenetti/git/tekvox/output-tekvox/build/uboot-2022.10"
+&linux_path="/home/giuliobenetti/git/tekvox/output-tekvox/build/linux-6.0.7"
+&dtb_path="&linux_path/arch/arm/boot/dts"
+
+; Debugger Reset
+;WinPAGE.RESet
+AREA.RESet
+WinPOS 0. 25. 75. 9. 0. 0. W000
+AREA.view
+
+PRINT "resetting..."
+
+RESet
+SYStem.RESet
+SYStem.CPU IMX6ULL
+
+SYStem.Option DACR ON          ; give Debugger global write permissions
+TrOnchip.Set DABORT OFF        ; used by Linux for page miss!
+TrOnchip.Set PABORT OFF        ; used by Linux for page miss!
+TrOnchip.Set UNDEF OFF         ; my be used by Linux for FPU detection
+SYStem.Option MMUSPACES OFF    ; enable space ids to virtual addresses
+SYStem.Option ResBreak OFF
+
+SETUP.IMASKASM ON          ; lock interrupts while single stepping
+SETUP.IMASKHLL ON          ; lock interrupts while single stepping in HLL
+
+IF VERSION.BUILD()<92177.
+(
+  ; adjust WaitReset time if a different bootmode is used
+  SYStem.Option WaitReset 10ms
+)
+ELSE
+(
+  ; poll till BootROM enables JTAG Pins
+  SYStem.Option WaitIDCODE 1.5s
+)
+SYStem.JtagClock CTCK 20MHz
+SYStem.Up
+
+DO ~~/demo/arm/hardware/imx6ultralite/scripts/dcd_interpreter "imximage.cfg"
+
+; Load u-boot in ddr
+Data.LOAD.Binary &uboot_path/u-boot.bin 0x87800000 /NoClear
+Data.LOAD.auto &uboot_path/u-boot /NoCODE
+Register.Init
+r.s pc 0x87800000
+
+Go.direct relocate_done
+WAIT !run()
+
+; Load symbols to relocate memory pointed by R4 register
+data.load.auto &uboot_path/u-boot Register(R4) /NoCODE
+
+;b.s do_bootz
+
+PRINT "loading Linux image..."
+; Loading Linux image and DTB via ICD
+Data.LOAD.Binary &linux_path/arch/arm/boot/zImage 0x82000000
+; Load the Linux kernel symbols into the debugger
+PRINT "loading Linux kernel symbols..."
+Data.LOAD.Elf &linux_path/vmlinux /gnu /NoCODE /NoClear
+; Load DTB
+PRINT "loading DTB..."
+Data.LOAD.Binary &dtb_path/imx6ull-14x14-evk.dtb 0x83000000 /NoClear
+
+; Open serial terminal window on ttyUSB0
+DO ~~/demo/etc/terminal/serial/term.cmm /dev/ttyUSB1 115200.
+
+TERM.SIZE 500. 25.
+
+; Starting u-boot
+Go
+PRINT "Starting Linux..."
+; Wait for uboot to be ready to receive characters on serial
+wait 1s
+; Stop autoboot of U-Boot
+TERM.Out 0x0a
+WAIT 0.1s
+; Set boot arguments few characters per time
+TERM.Out "setenv bootargs console=ttymxc0,115200 ip=192.168.50.201::"
+WAIT 0.1s
+TERM.Out ":255.255.255.0::eth0:off root=/dev/nfs rw nfsroot=192.168.50.220:"
+WAIT 0.1s
+TERM.Out "/home/giuliobenetti/git/tekvox/"
+WAIT 0.1s
+TERM.Out "output-tekvox/images/nfs,tcp,v3"
+WAIT 0.2s
+TERM.Out " rootwait panic=10 cpuidle.off=1 nohlt" 0x0a
+WAIT 0.1s
+
+TERM.Out "bootz 0x82000000 - 0x83000000" 0x0a
+WAIT 0.1s
+break
+
+; U-Boot already enabled MMU, so we can enable MMUSPACES already
+SYStem.Option MMUSPACES ON    ; enable space ids to virtual addresses
+
+Go.direct start_kernel /Onchip
+WAIT !run()
+
+; Map the virtual kernel symbols to physical addresses
+; to give the debugger access to it before CPU MMU is
+; initialized
+PRINT "initializing debugger MMU..."
+SYStem.Option MMUSPACES ON    ; enable space ids to virtual addresses
+MMU.FORMAT LINUX swapper_pg_dir 0xc0000000--0xffffffff 0x80000000
+TRANSlation.COMMON 0xc0000000--0xffffffff     ; common area for kernel and processes
+TRANSlation.TableWalk ON   ; debugger uses a table walk to decode virtual addresses
+TRANSlation.ON
+
+; Initialize Linux Awareness
+PRINT "initializing RTOS support..."
+TASK.CONFIG ~~/demo/arm/kernel/linux/awareness/linux.t32
+MENU.ReProgram ~~/demo/arm/kernel/linux/awareness/linux.men
+
+; Group kernel area to be displayed with red bar
+GROUP.Create "kernel" 0xc0000000--0xffffffff /RED
+
+Go
+
+Mode.Hll
+List
+
+TASK.SYMbol.Option ROOTPATH "&bsp_path/images/nfs"
+TASK.sYmbol.Option AutoLoad CURRLIB
+Symbol.autoload.CHECK ON
+
+enddo
