@@ -1,0 +1,110 @@
+; --------------------------------------------------------------------------------
+; @Title: PX30-Mini-evb U-Boot debugging Rockchip PX30
+; @Description:
+;   The example is generated for Rockchip PX30
+; @Keywords: uboot, Rockchip, px30*, PX30*
+; @Author: Giulio Benetti <giulio.benetti@benettiengineering.com>
+; @Board: PX30-MiniEVB*
+; @Chip: PX30*
+; @Copyright: (C) 2023 Benetti Engineering sas, licensed for use with TRACE32(R) only
+; --------------------------------------------------------------------------------
+; $Id: uboot.cmm
+
+; NOTE: in order to enable SWD pins SDMMC0_DET must be set high, so remove R9100
+
+LOCAL &uboot_path
+
+&uboot_path="/home/giuliobenetti/git/upstream/output-px30/build/uboot-2023.10"
+
+; Debugger Reset
+;WinPAGE.RESet
+;AREA.RESet
+;WinPOS 0. 25. 75. 9. 0. 0. W000
+;AREA.view
+
+PRINT "resetting..."
+
+RESet
+SYStem.CPU CortexA35
+SYStem.CONFIG CoreNumber 4.
+CORE.ASSIGN 1.
+
+; Rockchip PX30 Details
+SYStem.CONFIG.DEBUGAP1.Port 0.
+
+SYStem.CONFIG.COREDEBUG.Base 0x81010000 0x81012000 0x81014000 0x81016000
+SYStem.CONFIG.BMC.Base 0x81011000 0x81013000 0x81015000 0x81017000
+SYStem.CONFIG.CTI.Base 0x81018000 0x81019000 0x8101a000 0x8101b000
+
+SYSTEM.RESETOUT ; hard reset
+SYStem.CONFIG.DEBUGPORTTYPE SWD
+IF COMBIPROBE()||UTRACE()
+(
+  SYStem.CONFIG.CONNECTOR MIPI20T
+)
+
+SYStem.MemAccess DAP
+SYStem.JtagClock CTCK 50MHz
+
+SYStem.Option EnReset OFF
+SYStem.Option TRST OFF
+SYStem.Option ResBreak OFF
+
+SYStem.Option DACR ON          ; give Debugger global write permissions
+SYStem.Option MMUSPACES OFF    ; disable space to allow loading and running u-boot
+
+SETUP.IMASKASM ON          ; lock interrupts while single stepping
+SETUP.IMASKHLL ON          ; lock interrupts while single stepping
+
+SYStem.Up
+
+List.auto
+
+;load tpl in sram
+data.load.binary &uboot_path/tpl/u-boot-tpl.bin 0xff0e1000
+data.load.elf &uboot_path/tpl/u-boot-tpl /nocode
+Register.Init
+r.s pc 0xff0e1000
+; BROM provides SP initialization when booting from media so let's do the same
+r.s SP 0xff0ec000
+
+go.direct sdram_init
+WAIT !run()
+break
+
+enddo
+
+; start and wait for tpl to pass sdram_init
+; back_to_bootrom() already passed ddr3 initialization
+go.direct back_to_bootrom
+WAIT !run()
+break
+
+;load spl in sdram
+data.load.binary &uboot_path/spl/u-boot-spl-dtb.bin 0x0
+data.load.elf &uboot_path/spl/u-boot-spl /nocode
+;Register.Init
+r.s pc 0x00000000
+
+enddo
+
+; start and wait for spl to hang
+go.direct hang
+WAIT !run()
+
+enddo
+
+data.load.binary &uboot_path/u-boot-dtb.bin 0x00200000
+data.load.elf &uboot_path/u-boot /nocode /noregister
+
+r.s pc reset
+
+go.direct relocate_done
+WAIT !run()
+
+data.load.elf &uboot_path/u-boot Register(R4) /nocode
+step
+
+list.auto
+
+enddo
