@@ -1,0 +1,114 @@
+; --------------------------------------------------------------------------------
+; @Title: RK3399-Rockpro64 U-Boot debugging Rockchip RK3399
+; @Description:
+;   The example is generated for Rockchip RK3399
+; @Keywords: uboot, Rockchip, rk3399*, RK3399*
+; @Author: Giulio Benetti <giulio.benetti@benettiengineering.com>
+; @Board: RK3399-Rockpro64*
+; @Chip: RK3399*
+; @Copyright: (C) 2023 Benetti Engineering sas, licensed for use with TRACE32(R) only
+; --------------------------------------------------------------------------------
+; $Id: uboot.cmm
+
+; NOTE: in order to enable SWD pins SDMMC0_DET must be set high, so remove R207
+
+LOCAL &uboot_path
+
+&uboot_path="/home/giuliobenetti/git/upstream/output-rockpro64/build/uboot-2023.07"
+
+; Debugger Reset
+WinPAGE.RESet
+AREA.RESet
+WinPOS 0. 25. 75. 9. 0. 0. W000
+AREA.view
+
+PRINT "resetting..."
+
+RESet
+SYStem.CPU CortexA72A53
+SYStem.CONFIG CoreNumber 8.
+CORE.ASSIGN 1.
+
+; Rockchip RK3399 Details
+SYStem.CONFIG.MEMORYAP1.Port 0.
+SYStem.CONFIG.DEBUGAP1.Port 1.
+
+SYStem.CONFIG.FUNNEL.Base 0x80001000
+SYStem.CONFIG.TPIU.Base 0x80003000
+
+SYStem.CONFIG.COREDEBUG.Base 0x80210000 0x80030000 0x80310000 0x80032000 0x00000000 0x80034000 0x00000000 0x80036000
+SYStem.CONFIG.CTI.Base       0x80220000 0x80038000 0x80320000 0x80039000 0x00000000 0x8003a000 0x00000000 0x8003b000
+SYStem.CONFIG.BMC.Base       0x80230000 0x80031000 0x80330000 0x80033000 0x00000000 0x80035000 0x00000000 0x80037000
+SYStem.CONFIG.ETM.Base       0x80240000 0x8003c000 0x80340000 0x8003d000 0x00000000 0x8003e000 0x00000000 0x8003f000
+
+; Slow down debugger enough to match A72 cores speed.
+; Many thanks to Lauterbach team!!
+diag 0x30e4 1
+
+SYSTEM.RESETOUT ; hard reset
+SYStem.CONFIG.DEBUGPORTTYPE SWD
+IF COMBIPROBE()||UTRACE()
+(
+  SYStem.CONFIG.CONNECTOR MIPI20T
+)
+
+SYStem.MemAccess DAP
+SYStem.JtagClock CTCK 20MHz
+
+SYStem.Option EnReset OFF
+SYStem.Option TRST OFF
+SYStem.Option ResBreak OFF
+
+SYStem.Option DACR ON          ; give Debugger global write permissions
+SYStem.Option MMUSPACES OFF    ; disable space to allow loading and running u-boot
+
+;SYStem.Option DUALPORT ON
+
+SETUP.IMASKASM ON          ; lock interrupts while single stepping
+SETUP.IMASKHLL ON          ; lock interrupts while single stepping
+
+SYStem.Up
+
+;load tpl in sram
+data.load.binary &uboot_path/tpl/u-boot-tpl.bin 0xff8c2000
+data.load.elf &uboot_path/tpl/u-boot-tpl /nocode
+Register.Init
+r.s pc 0xff8c2000
+; BROM provides SP initialization when booting from media so let's do the same
+r.s SP 0xff900000
+
+; start and wait for tpl to pass sdram_init
+; board_init_r() already passed ddr4l initialization
+go.direct board_init_r
+WAIT !run()
+break
+
+;load spl in sdram
+data.load.binary &uboot_path/spl/u-boot-spl-dtb.bin 0x0
+data.load.elf &uboot_path/spl/u-boot-spl /nocode
+r.s pc 0x00000000
+
+; start and wait for spl to hang
+go.direct hang
+WAIT !run()
+
+list.auto
+
+data.load.binary &uboot_path/u-boot-dtb.bin 0x00200000
+data.load.elf &uboot_path/u-boot /nocode /noregister
+
+r.s pc reset
+
+go.direct relocate_done
+WAIT !run()
+
+; Load symbols to relocated u-boot
+data.load.elf &uboot_path/u-boot Register(x9) /nocode
+
+; Go to first instruction after relocation
+go.direct relocation_return
+WAIT !run()
+
+list.auto
+
+enddo
