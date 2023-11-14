@@ -1,0 +1,50 @@
+; --------------------------------------------------------------------------------
+; @Title: A64-OlinuXino debugging Allwinner A64
+; @Description:
+;   The example is generated for A64-OlinuXino* boards using an ICD.
+;   It will NOT run on any other board, but may be used as a template
+;   for others.
+; @Keywords: uboot, Allwinner, a64*, A64*
+; @Author: Giulio Benetti <giulio.benetti@benettiengineering.com>
+; @Board: A64-OlinuXino*
+; @Chip: A64*
+; @Copyright: (C) 1981-2021 Benetti Engineering sas, licensed for use with TRACE32(R) only
+; --------------------------------------------------------------------------------
+
+; Debugger Reset
+WinPAGE.RESet
+AREA.RESet
+WinPOS 0. 25. 75. 9. 0. 0. W000
+AREA.view
+
+PRINT "resetting..."
+
+RESet
+SYStem.CPU CortexA53
+SYStem.CONFIG CoreNumber 4.
+CORE.ASSIGN 1.
+
+SYSTEM.RESETOUT ; hard reset
+SYStem.JTAGCLOCK 20MHz
+
+; Allwinner A64 Details
+SYStem.CONFIG.MEMORYAP1.Port 0.
+SYStem.CONFIG.DEBUGAP1.Port 1.
+SYStem.CONFIG.COREDEBUG.Base 0x81010000 0x81110000 0x81210000 0x81310000
+SYStem.CONFIG.BMC.Base 0x81030000 0x81130000 0x81230000 0x81330000
+SYStem.CONFIG.CTI.Base 0x81020000 0x81120000 0x81220000 0x81320000
+
+SYStem.Option DACR ON          ; give Debugger global write permissions
+SYStem.Option MMUSPACES OFF    ; enable space ids to virtual addresses
+SYStem.Option EnReset OFF
+SYStem.Option TRST OFF
+
+; Allwinner A64 BROM
+MAP.BONCHIP 0x00000000--0x0000ffff
+
+SETUP.IMASKASM ON          ; lock interrupts while single stepping
+SETUP.IMASKHLL ON          ; lock interrupts while single stepping in HLL
+
+SYStem.Up
+
+enddo
