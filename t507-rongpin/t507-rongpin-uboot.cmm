@@ -1,0 +1,85 @@
+; --------------------------------------------------------------------------------
+; @Title: T507-Rongpin U-Boot debugging Allwinner T507
+; @Description:
+;   The example is generated for T507-Rongpin* boards using an ICD.
+;   It will NOT run on any other board, but may be used as a template
+;   for others.
+; @Keywords: uboot, Allwinner, t507*, T507*
+; @Author: Giulio Benetti <giulio.benetti@benettiengineering.com>
+; @Board: T507-Rongpin*
+; @Chip: T507*
+; @Copyright: (C) 2023 Benetti Engineering sas, licensed for use with TRACE32(R) only
+; --------------------------------------------------------------------------------
+
+LOCAL &uboot_path
+
+&uboot_path="/home/giuliobenetti/git/upstream/output-t507/build/uboot-2023.01"
+
+; Debugger Reset
+WinPAGE.RESet
+AREA.RESet
+WinPOS 0. 25. 75. 9. 0. 0. W000
+AREA.view
+
+PRINT "resetting..."
+
+RESet
+SYStem.CPU CortexA53
+SYStem.CONFIG CoreNumber 4.
+CORE.ASSIGN 1.
+
+SYSTEM.RESETOUT ; hard reset
+SYStem.JTAGCLOCK 20MHz
+
+; Allwinner T507 Details
+SYStem.CONFIG.MEMORYAP1.Port 0.
+SYStem.CONFIG.DEBUGAP1.Port 1.
+SYStem.CONFIG.COREDEBUG.Base 0x81410000 0x81510000 0x81610000 0x81710000
+SYStem.CONFIG.CTI.Base 0x81420000 0x81520000 0x81620000 0x81720000
+SYStem.CONFIG.BMC.Base 0x81430000 0x81530000 0x81630000 0x81730000
+SYStem.CONFIG.ETM.Base 0x81440000 0x81540000 0x81640000 0x81740000
+
+SYStem.Option DACR ON          ; give Debugger global write permissions
+SYStem.Option MMUSPACES OFF    ; enable space ids to virtual addresses
+SYStem.Option EnReset OFF
+SYStem.Option TRST OFF
+
+; Allwinner T507 BROM
+MAP.BONCHIP 0x00000000--0x0000ffff
+
+SETUP.IMASKASM ON          ; lock interrupts while single stepping
+SETUP.IMASKHLL ON          ; lock interrupts while single stepping in HLL
+
+SYStem.Up
+
+list
+
+enddo
+
+go
+wait 1s
+break
+
+list
+
+; Load spl in sram
+;data.load.auto &uboot_path/spl/u-boot-spl
+
+enddo
+
+; Start and wait for spl to be executed and fail on sd-card boot
+; (because there's no sd-card inserted)
+Go
+Wait 1s
+Break
+
+; Load real uboot
+Data.LOAD.Binary &uboot_path/u-boot.bin 0x4a000000 /NoClear
+data.load.auto &uboot_path/u-boot /NoCODE
+Register.Init
+r.s pc 0x4a000000
+
+Mode.Hll
+List
+
+enddo
