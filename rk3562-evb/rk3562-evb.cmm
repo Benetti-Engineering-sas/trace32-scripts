@@ -51,8 +51,6 @@ SYStem.Option ResBreak OFF
 SYStem.Option DACR ON          ; give Debugger global write permissions
 SYStem.Option MMUSPACES OFF    ; disable space to allow loading and running u-boot
 
-;SYStem.Option DUALPORT ON
-
 SETUP.IMASKASM ON          ; lock interrupts while single stepping
 SETUP.IMASKHLL ON          ; lock interrupts while single stepping
 
