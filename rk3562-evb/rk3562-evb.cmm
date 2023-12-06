@@ -23,7 +23,7 @@ PRINT "resetting..."
 
 RESet
 SYStem.CPU CortexA53
-SYStem.CONFIG CoreNumber 8.
+SYStem.CONFIG CoreNumber 4.
 CORE.ASSIGN 1.
 
 ; Rockchip RK3562 Details
