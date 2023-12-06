@@ -8,8 +8,6 @@
 ; @Chip: RK3399*
 ; @Copyright: (C) 2023 Benetti Engineering sas, licensed for use with TRACE32(R) only
 ; --------------------------------------------------------------------------------
-; $Id: uboot.cmm
-
 ; NOTE: in order to enable SWD pins SDMMC0_DET must be set high, so remove R207
 
 LOCAL &uboot_path

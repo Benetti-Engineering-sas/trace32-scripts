@@ -8,7 +8,6 @@
 ; @Chip: RK3288*
 ; @Copyright: (C) 2021 Benetti Engineering sas, licensed for use with TRACE32(R) only
 ; --------------------------------------------------------------------------------
-; $Id: uboot.cmm
 
 LOCAL &uboot_path
 
