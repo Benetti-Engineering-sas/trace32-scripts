@@ -1,8 +1,8 @@
 ; --------------------------------------------------------------------------------
-; @Title: RK3562-EVB U-Boot debugging Rockchip RK3562
+; @Title: RK3562-EVB debugging Rockchip RK3562
 ; @Description:
 ;   The example is generated for Rockchip RK3562
-; @Keywords: uboot, Rockchip, rk3562*, RK3562*
+; @Keywords: Rockchip, rk3562*, RK3562*
 ; @Author: Giulio Benetti <giulio.benetti@benettiengineering.com>
 ; @Board: RK3562-EVB*
 ; @Chip: RK3562*
@@ -47,7 +47,7 @@ SYStem.Option TRST OFF
 SYStem.Option ResBreak OFF
 
 SYStem.Option DACR ON          ; give Debugger global write permissions
-SYStem.Option MMUSPACES OFF    ; disable space to allow loading and running u-boot
+SYStem.Option MMUSPACES OFF    ; disable space ids to virtual addresses
 
 SETUP.IMASKASM ON          ; lock interrupts while single stepping
 SETUP.IMASKHLL ON          ; lock interrupts while single stepping
