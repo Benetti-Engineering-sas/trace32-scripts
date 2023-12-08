@@ -4,7 +4,7 @@
 ;   The example is generated for A64-OlinuXino* boards using an ICD.
 ;   It will NOT run on any other board, but may be used as a template
 ;   for others.
-; @Keywords: uboot, Allwinner, a64*, A64*
+; @Keywords: Allwinner, a64*, A64*
 ; @Author: Giulio Benetti <giulio.benetti@benettiengineering.com>
 ; @Board: A64-OlinuXino*
 ; @Chip: A64*
