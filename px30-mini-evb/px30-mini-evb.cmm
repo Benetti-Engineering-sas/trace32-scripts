@@ -45,7 +45,7 @@ SYStem.Option TRST OFF
 SYStem.Option ResBreak OFF
 
 SYStem.Option DACR ON          ; give Debugger global write permissions
-SYStem.Option MMUSPACES OFF    ; disable space to allow loading and running u-boot
+SYStem.Option MMUSPACES OFF    ; enable space ids to virtual addresses
 
 SETUP.IMASKASM ON          ; lock interrupts while single stepping
 SETUP.IMASKHLL ON          ; lock interrupts while single stepping
