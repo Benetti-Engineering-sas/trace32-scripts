@@ -1,0 +1,65 @@
+; --------------------------------------------------------------------------------
+; @Title: RK3562-EVB U-Boot debugging Rockchip RK3562
+; @Description:
+;   The example is generated for Rockchip RK3562
+; @Keywords: uboot, Rockchip, rk3562*, RK3562*
+; @Author: Giulio Benetti <giulio.benetti@benettiengineering.com>
+; @Board: RK3562-EVB*
+; @Chip: RK3562*
+; @Copyright: (C) 2024 Benetti Engineering sas, licensed for use with TRACE32(R) only
+; --------------------------------------------------------------------------------
+; NOTE: in order to enable SWD pins SDMMC0_DET must be set high, so don't insert
+; sd-card into the slot
+
+; Debugger Reset
+WinPAGE.RESet
+AREA.RESet
+WinPOS 0. 25. 75. 9. 0. 0. W000
+AREA.view
+
+PRINT "resetting..."
+
+RESet
+SYStem.CPU CortexA53
+SYStem.CONFIG CoreNumber 4.
+CORE.ASSIGN 1.
+
+; Rockchip RK3562 Details
+SYStem.CONFIG.DEBUGAP1.Port 0.
+
+SYStem.CONFIG.COREDEBUG.Base 0x81010000 0x81012000 0x81014000 0x81016000
+SYStem.CONFIG.BMC.Base       0x81011000 0x81013000 0x81015000 0x81017000
+SYStem.CONFIG.CTI.Base       0x81018000 0x81019000 0x8101a000 0x8101b000
+SYStem.CONFIG.ETM.Base       0x8101c000 0x8101d000 0x8101e000 0x8101f000
+
+SYSTEM.RESETOUT ; hard reset
+SYStem.CONFIG.DEBUGPORTTYPE SWD
+IF COMBIPROBE()||UTRACE()
+(
+  SYStem.CONFIG.CONNECTOR MIPI20T
+)
+
+SYStem.MemAccess DAP
+SYStem.JtagClock CTCK 20MHz
+
+SYStem.Option EnReset OFF
+SYStem.Option TRST OFF
+SYStem.Option ResBreak OFF
+
+SYStem.Option DACR ON          ; give Debugger global write permissions
+SYStem.Option MMUSPACES OFF    ; disable space ids to virtual addresses
+
+SETUP.IMASKASM ON          ; lock interrupts while single stepping
+SETUP.IMASKHLL ON          ; lock interrupts while single stepping
+
+SYStem.Up
+
+data.load.elf /home/giuliobenetti/git/upstream/output-rk3562evb/build/uboot-custom/spl/u-boot-spl
+
+Go.direct board_debug_uart_init
+WAIT !run()
+
+Mode.Hll
+List
+
+enddo
