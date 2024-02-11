@@ -54,10 +54,13 @@ SETUP.IMASKHLL ON          ; lock interrupts while single stepping
 
 SYStem.Up
 
-data.load.elf /home/giuliobenetti/git/upstream/output-rk3562evb/build/uboot-custom/spl/u-boot-spl
+data.load.Binary /home/giuliobenetti/git/upstream/output-rk3562evb/build/uboot-custom/spl/u-boot-spl-dtb.bin 0x0
+data.load.elf /home/giuliobenetti/git/upstream/output-rk3562evb/build/uboot-custom/spl/u-boot-spl /NoCODE
 
-Go.direct board_debug_uart_init
+Go.direct rk3562_clk_probe
 WAIT !run()
+
+b.s ns16550_serial_probe
 
 Mode.Hll
 List
