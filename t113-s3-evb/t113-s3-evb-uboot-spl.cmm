@@ -48,6 +48,7 @@ TrOnchip.Set UNDEF OFF         ; my be used by Linux for FPU detection
 SYStem.Option MMUSPACES OFF    ; enable space ids to virtual addresses
 SYStem.Option EnReset OFF
 SYStem.Option TRST ON
+SYStem.Option WaitReset 500ms  ; Let some time to BROM to execute
 
 ; Allwinner T113 BROM
 MAP.BONCHIP 0x00000000--0x0000bfff
