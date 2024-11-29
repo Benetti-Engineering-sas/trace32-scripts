@@ -39,7 +39,6 @@ SYStem.CONFIG.MEMORYAP1.Port 0.
 SYStem.CONFIG.DEBUGAP1.Port 1.
 SYStem.CONFIG.COREDEBUG.Base 0x81410000 0x81412000
 SYStem.CONFIG.BMC.Base 0x81411000 0x81413000
-SYStem.CONFIG.CTI.Base DAP:0x80050000
 
 SYStem.Option DACR ON          ; give Debugger global write permissions
 TrOnchip.Set DABORT OFF        ; used by Linux for page miss!
