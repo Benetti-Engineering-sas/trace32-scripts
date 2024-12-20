@@ -1,0 +1,146 @@
+; --------------------------------------------------------------------------------
+; @Title: T113-S3-EVB Linux debugging Allwinner T113-S3
+; @Description:
+;   The example is generated for T113-S3-EVB* boards using an ICD.
+;   It will NOT run on any other board, but may be used as a template
+;   for others.
+; @Keywords: linux, Allwinner, t113*, T113*
+; @Author: Giulio Benetti <giulio.benetti@benettiengineering.com>
+; @Board: T113-S3-EVB*
+; @Chip: T113*
+; @Copyright: (C) 2023 Benetti Engineering sas, licensed for use with TRACE32(R) only
+; --------------------------------------------------------------------------------
+
+LOCAL &uboot_path
+LOCAL &linux_path
+LOCAL &dtb_path
+LOCAL &ka_path
+LOCAL &awareness
+
+&uboot_path="/home/giuliobenetti/git/micronovasrl/gitlab/out/z051-costa-barseri-gateway/build/uboot-custom"
+&linux_path="/home/giuliobenetti/git/micronovasrl/gitlab/out/z051-costa-barseri-gateway/build/linux-custom"
+
+; Debugger Reset
+WinPAGE.RESet
+AREA.RESet
+WinPOS 0. 25. 75. 9. 0. 0. W000
+AREA.view
+
+PRINT "resetting..."
+
+RESet
+SYStem.CPU CortexA7MPCore
+SYStem.CONFIG CoreNumber 2.
+CORE.ASSIGN 1.
+
+SYSTEM.RESETOUT ; hard reset
+SYStem.JTAGCLOCK 20MHz
+
+; Allwinner T113 Details
+SYStem.CONFIG.MEMORYAP1.Port 0.
+SYStem.CONFIG.DEBUGAP1.Port 1.
+SYStem.CONFIG.COREDEBUG.Base 0x81410000 0x81412000
+SYStem.CONFIG.BMC.Base 0x81411000 0x81413000
+
+SYStem.Option DACR ON          ; give Debugger global write permissions
+TrOnchip.Set DABORT OFF        ; used by Linux for page miss!
+TrOnchip.Set PABORT OFF        ; used by Linux for page miss!
+TrOnchip.Set UNDEF OFF         ; my be used by Linux for FPU detection
+SYStem.Option MMUSPACES OFF    ; enable space ids to virtual addresses
+SYStem.Option EnReset OFF
+SYStem.Option TRST ON
+SYStem.Option WaitReset 500ms  ; Let some time to BROM to execute
+
+; Allwinner T113 BROM
+MAP.BONCHIP 0x00000000--0x0000bfff
+
+SETUP.IMASKASM ON          ; lock interrupts while single stepping
+SETUP.IMASKHLL ON          ; lock interrupts while single stepping in HLL
+
+SYStem.Up
+
+; Load spl in sram
+data.load.auto &uboot_path/spl/u-boot-spl
+
+; Start and wait for spl to be executed and fail on sd-card boot
+; (because there's no sd-card inserted)
+Go
+Wait 1s
+Break
+
+; Load real uboot
+Data.LOAD.Binary &uboot_path/u-boot.bin 0x42e00000 /NoClear
+data.load.auto &uboot_path/u-boot /NoCODE
+Register.Init
+r.s pc 0x42e00000
+
+PRINT "loading Linux image..."
+; Loading Linux image and DTB via ICD
+Data.LOAD.Binary &linux_path/arch/arm/boot/zImage 0x41100000
+; Load the Linux kernel symbols into the debugger
+PRINT "loading Linux kernel symbols..."
+Data.LOAD.Elf &linux_path/vmlinux /gnu /NoCODE
+; Load DTB
+PRINT "loading DTB..."
+Data.LOAD.Binary &linux_path/arch/arm/boot/dts/allwinner/sun8i-t113s-micronova-costa-z051.dtb 0x41000000 /NoClear
+
+; Open serial terminal window on ttyUSB0
+DO ~~/demo/etc/terminal/serial/term.cmm /dev/ttyUSB0 115200.
+
+; Starting the kernel
+Go
+PRINT "Starting Linux..."
+; Wait for uboot to be ready to receive characters on serial
+wait 1s
+; Stop autoboot of U-Boot
+TERM.Out 0x0a
+WAIT 0.1s
+; Set boot arguments
+TERM.Out "setenv bootargs console=ttyS0,115200 "
+WAIT 0.1s
+TERM.Out "earlyprintk root=/dev/mmcblk0p1 "
+WAIT 0.1s
+TERM.Out "rootwait panic=10 cpuidle.off=1 nohlt" 0x0a
+WAIT 0.1s
+
+TERM.Out "bootz 0x41100000 - 0x41000000" 0x0a
+WAIT 0.1s
+break
+
+; U-Boot already enabled MMU, so we can enable MMUSPACES already
+SYStem.Option MMUSPACES ON    ; enable space ids to virtual addresses
+
+Go.direct start_kernel /Onchip
+WAIT !run()
+
+; Map the virtual kernel symbols to physical addresses
+; to give the debugger access to it before CPU MMU is
+; initialized
+PRINT "initializing debugger MMU..."
+MMU.FORMAT LINUX swapper_pg_dir 0xc0000000--0xffffffff 0x40000000
+TRANSlation.COMMON 0xc0000000--0xffffffff     ; common area for kernel and processes
+TRANSlation.TableWalk ON   ; debugger uses a table walk to decode virtual addresses
+TRANSlation.ON
+
+Go.direct smp_cpus_done
+WAIT !run()
+
+SYStem.Down
+SYStem.CONFIG CoreNumber 2.
+CORE.ASSIGN 1 2
+SYStem.Mode Attach
+
+; Initialize Linux Awareness
+&ka_path="~~/demo/arm/kernel/linux/awareness"
+&awareness="linux.t32"
+
+PRINT "initializing RTOS support..."
+TASK.CONFIG &ka_path/&awareness      ; loads Linux awareness
+MENU.ReProgram &ka_path/linux        ; loads Linux menu
+; Group kernel area to be displayed with red bar
+GROUP.Create "kernel" 0xc0000000--0xffffffff /RED
+
+Mode.Hll
+List
+
+enddo
