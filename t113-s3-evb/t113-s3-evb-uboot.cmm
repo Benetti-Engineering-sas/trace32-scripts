@@ -1,0 +1,87 @@
+; --------------------------------------------------------------------------------
+; @Title: T113-S3-EVB U-Boot SPL debugging Allwinner T113-S3
+; @Description:
+;   The example is generated for T113-S3-EVB* boards using an ICD.
+;   It will NOT run on any other board, but may be used as a template
+;   for others.
+; @Keywords: uboot, Allwinner, t113*, T113*
+; @Author: Giulio Benetti <giulio.benetti@benettiengineering.com>
+; @Board: T113-S3-EVB*
+; @Chip: T113*
+; @Copyright: (C) 2023 Benetti Engineering sas, licensed for use with TRACE32(R) only
+; --------------------------------------------------------------------------------
+
+LOCAL &uboot_path
+LOCAL &ka_path
+LOCAL &awareness
+
+&uboot_path="/home/giuliobenetti/git/micronovasrl/gitlab/z051-costa-barseri-gateway-linux-bsp/out/evb2/build/uboot-custom"
+
+; Debugger Reset
+WinPAGE.RESet
+AREA.RESet
+WinPOS 0. 25. 75. 9. 0. 0. W000
+AREA.view
+
+PRINT "resetting..."
+
+RESet
+SYStem.CPU CortexA7MPCore
+SYStem.CONFIG CoreNumber 2.
+CORE.ASSIGN 1.
+
+SYSTEM.RESETOUT ; hard reset
+SYStem.JTAGCLOCK 20MHz
+
+; Allwinner T113 Details
+SYStem.CONFIG.MEMORYAP1.Port 0.
+SYStem.CONFIG.DEBUGAP1.Port 1.
+SYStem.CONFIG.COREDEBUG.Base 0x81410000 0x81412000
+SYStem.CONFIG.BMC.Base 0x81411000 0x81413000
+
+SYStem.Option DACR ON          ; give Debugger global write permissions
+TrOnchip.Set DABORT OFF        ; used by Linux for page miss!
+TrOnchip.Set PABORT OFF        ; used by Linux for page miss!
+TrOnchip.Set UNDEF OFF         ; my be used by Linux for FPU detection
+SYStem.Option MMUSPACES OFF    ; enable space ids to virtual addresses
+SYStem.Option EnReset OFF
+SYStem.Option TRST ON
+SYStem.Option WaitReset 500ms  ; Let some time to BROM to execute
+
+; Allwinner T113 BROM
+MAP.BONCHIP 0x00000000--0x0000bfff
+
+SETUP.IMASKASM ON          ; lock interrupts while single stepping
+SETUP.IMASKHLL ON          ; lock interrupts while single stepping in HLL
+
+SYStem.Up
+
+; Load spl in sram
+data.load.auto &uboot_path/spl/u-boot-spl
+
+; Start and wait for spl to be executed and fail on sd-card boot
+; (because there's no sd-card inserted)
+Go
+Wait 1s
+Break
+
+; Load real uboot
+Data.LOAD.Binary &uboot_path/u-boot.bin 0x42e00000 /NoClear
+data.load.auto &uboot_path/u-boot /NoCODE
+Register.Init
+r.s pc 0x42e00000
+
+Go.direct board_init_f
+WAIT !run()
+
+Go.direct relocate_done
+WAIT !run()
+
+; Load symbols to relocate memory pointed by R4 register
+data.load.auto &uboot_path/u-boot Register(R4) /NoCODE
+step
+
+Mode.Hll
+List
+
+enddo
