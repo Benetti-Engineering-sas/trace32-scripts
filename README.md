@@ -29,11 +29,13 @@
 - NXP i.MXRT1050
 - Rockchip RK3288
 - Rockchip RK3399
+- Rockchip RK3562
 
 ### SoCs supported for entering Linux debug: ###
 - Allwinner A13
 - Allwinner A20
 - Allwinner A33
+- Allwinner T113-S3
 - NXP i.MX6ULL
 - NXP i.MXRT1020
 - NXP i.MXRT1050
