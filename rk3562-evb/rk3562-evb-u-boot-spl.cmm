@@ -11,6 +11,10 @@
 ; NOTE: in order to enable SWD pins SDMMC0_DET must be set high, so don't insert
 ; sd-card into the slot
 
+LOCAL &uboot_path
+
+&uboot_path="/home/giuliobenetti/git/micronovasrl/rk3562-rockchip-sdk/u-boot"
+
 ; Debugger Reset
 WinPAGE.RESet
 AREA.RESet
@@ -51,15 +55,19 @@ SYStem.Option WaitReset 1s  ; Let some time to programmed SPL-ATF-Uboot to execu
 SETUP.IMASKASM ON          ; lock interrupts while single stepping
 SETUP.IMASKHLL ON          ; lock interrupts while single stepping
 
-SYStem.Up
+SYStem.Attach
+break
 
-data.load.Binary /home/giuliobenetti/git/upstream/output-rk3562evb/build/uboot-custom/spl/u-boot-spl-dtb.bin 0x0
-data.load.elf /home/giuliobenetti/git/upstream/output-rk3562evb/build/uboot-custom/spl/u-boot-spl /NoCODE
+data.load.Binary &uboot_path/u-boot-dtb.bin 0x200000
+data.load.elf &uboot_path/u-boot /NoCODE /Register
 
-Go.direct rk3562_clk_probe
+; run to the end of relocate_done routine
+Go.direct relocate_done\14
 WAIT !run()
 
-b.s ns16550_serial_probe
+; Load symbols to relocate memory pointed by X9 register
+data.load.auto &uboot_path/u-boot Register(X9) /NoCODE
+step
 
 Mode.Hll
 List
