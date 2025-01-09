@@ -6,7 +6,7 @@
 ; @Author: Giulio Benetti <giulio.benetti@benettiengineering.com>
 ; @Board: RK3562-EVB*
 ; @Chip: RK3562*
-; @Copyright: (C) 2024 Benetti Engineering sas, licensed for use with TRACE32(R) only
+; @Copyright: (C) 2025 Benetti Engineering sas, licensed for use with TRACE32(R) only
 ; --------------------------------------------------------------------------------
 ; NOTE: in order to enable SWD pins SDMMC0_DET must be set high, so don't insert
 ; sd-card into the slot
@@ -39,15 +39,14 @@ IF COMBIPROBE()||UTRACE()
   SYStem.CONFIG.CONNECTOR MIPI20T
 )
 
-SYStem.MemAccess DAP
 SYStem.JtagClock CTCK 20MHz
-
-SYStem.Option EnReset OFF
-SYStem.Option TRST OFF
-SYStem.Option ResBreak OFF
 
 SYStem.Option DACR ON          ; give Debugger global write permissions
 SYStem.Option MMUSPACES OFF    ; disable space ids to virtual addresses
+SYStem.Option EnReset ON
+SYStem.Option TRST OFF
+SYStem.Option ResBreak OFF
+SYStem.Option WaitReset 1s  ; Let some time to programmed SPL-ATF-Uboot to execute
 
 SETUP.IMASKASM ON          ; lock interrupts while single stepping
 SETUP.IMASKHLL ON          ; lock interrupts while single stepping
